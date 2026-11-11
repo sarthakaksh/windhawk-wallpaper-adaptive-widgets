@@ -8,19 +8,16 @@ A collection of **Windhawk mods** and a **YASB config** for a desktop that chang
 - 🖼️ Sample **wallpapers** and **cutouts** (for the 3D "behind the subject" effect)
 
 ---
+<img width="1920" height="1200" alt="8VSaopUvhW" src="https://github.com/user-attachments/assets/4e920450-9935-4e81-a3f7-3730605a3bbf" />
+<img width="1920" height="1200" alt="DB3K9AQPsf" src="https://github.com/user-attachments/assets/1b754446-f260-4a4a-9668-71d781dfb074" />
+<img width="1920" height="1200" alt="WBJNUKBmYb" src="https://github.com/user-attachments/assets/0fa10fbd-a684-409b-a9d4-dca36bdccdf6" />
+<img width="1920" height="1200" alt="WBJNUKBmYb" src="https://github.com/user-attachments/assets/4a60a902-bfb5-4367-80fe-f976ae1c36ef" />
+<img width="1920" height="1200" alt="WBJNUKBmYb" src="https://github.com/user-attachments/assets/018de9c5-85b5-45be-9c5a-959512ae28a5" />
+<img width="1920" height="1200" alt="WBJNUKBmYb" src="https://github.com/user-attachments/assets/76b4a2d2-202b-437f-a49b-1bb03e617217" />
+<img width="1920" height="1200" alt="WBJNUKBmYb" src="https://github.com/user-attachments/assets/be41bc2f-7c8c-423d-a84c-f7fbdd282d60" />
+<img width="1920" height="1200" alt="WBJNUKBmYb" src="https://github.com/user-attachments/assets/f4d91df3-3c41-4e1c-8b27-30b997fa64d1" />
 
-## 📁 What's in this repo
 
-| File / Folder | What it is |
-|---|---|
-| `Audio-visualizer-and-lyrics` | Windhawk mod: audio visualizer, lyrics, album widget, player |
-| `Clock-s` | Windhawk mod: desktop clock |
-| `YASB/` | My YASB config and styles |
-| `wallpaper/` | Example wallpapers |
-| `cutout/` | Example cutout PNGs |
-| `electroharmonix.ttf` | Font for the clock's 4th (Tech) style |
-
----
 
 ## ⚠️ Step 1: Turn off the wallpaper change animation (important!)
 
