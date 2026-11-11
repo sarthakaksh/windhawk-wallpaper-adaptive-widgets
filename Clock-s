@@ -1,0 +1,3070 @@
+// ==WindhawkMod==
+// @id              desktop-clock-widget
+// @name            Desktop Clock Widget
+// @description     Time + date widget on the desktop with multiple styles. Remembers its position, size and style separately for every wallpaper, with a drag-to-edit layout mode.
+// @version         0.3.0
+// @author          sarthakaksh
+// @github          https://github.com/sarthakaksh
+// @include         explorer.exe
+// @architecture    x86-64
+// @compilerOptions -lole32 -ld2d1 -ldwrite -lgdi32 -luser32 -ladvapi32 -lcomdlg32
+// ==/WindhawkMod==
+
+// ==WindhawkModReadme==
+/*
+# Desktop Clock Widget
+
+A clock (time + date) that sits on the desktop, behind the icons. Text is always shown in English.
+
+## Styles
+1. **Classic** - light time with the date underneath
+2. **Bold** - small date on top, big bold semi-transparent time below
+3. **Poster** - giant fading day number, month, time and a vertical weekday
+
+More styles can be added later; each wallpaper remembers its own style.
+
+## Layout editor
+Press the editor shortcut (default **Ctrl+Alt+Shift+C**) to enter layout mode:
+
+* Drag the clock to move it
+* Drag a corner handle to resize (width and height are independent, so the shape can change)
+* Mouse wheel scales the clock around its center
+* **S** (or **Tab**) cycles through the styles, **1** / **2** picks a style directly
+* **Enter** or **right-click** (or the shortcut again) saves, **Esc** cancels, **R** resets position and size
+
+## Per-wallpaper profiles
+The position, size and style you save are stored for the wallpaper that is active at that moment.
+When the wallpaper changes, the clock jumps to the layout and style saved for the new wallpaper.
+A wallpaper with no saved layout keeps the current one until you edit it.
+Profiles saved by older versions load as the Classic style.
+*/
+// ==/WindhawkModReadme==
+
+// ==WindhawkModSettings==
+/*
+- use24Hour: false
+  $name: 24-hour time
+- showSeconds: false
+  $name: Show seconds
+- showDate: true
+  $name: Show date
+- dateFormat: "dddd, d MMMM"
+  $name: Date format (Classic style)
+  $description: Windows date pattern, for example "dddd, d MMMM yyyy" or "ddd dd MMM".
+- dateFormatBold: "ddd d MMM"
+  $name: Date format (Bold style)
+  $description: Windows date pattern, for example "ddd d MMM" gives "Sat 11 Jul".
+- fontName: "Segoe UI"
+  $name: Font
+- textColor: "FFFFFF"
+  $name: Classic style - text color (hex RRGGBB)
+- boldFont: "Segoe UI"
+  $name: Bold style - font
+  $description: A heavy font looks best (Montserrat Black, Poppins ExtraBold, Inter Black...). Install it or put it in the custom fonts folder.
+- boldTextColor: "FFFFFF"
+  $name: Bold style - text color (hex RRGGBB)
+- fontFolder: ""
+  $name: Custom fonts folder
+  $description: Optional. A folder with .ttf / .otf files. Fonts in it can be used by name in the font settings without installing them.
+- posterNumberFont: "Impact"
+  $name: Poster style - big number font
+  $description: A tall, heavy font works best. The number is automatically squeezed to fit.
+- posterTextFont: "Segoe UI"
+  $name: Poster style - text font
+  $description: Used for the month, the time and the weekday.
+- posterNumberColor: "2F6DB5"
+  $name: Poster style - number color (hex RRGGBB)
+- posterTextColor: "FF9A3C"
+  $name: Poster style - text color (hex RRGGBB)
+- techBigFont: "Electroharmonix"
+  $name: Tech style - big weekday font
+  $description: The skin's weekday font. Install it, or put the .ttf in the custom fonts folder.
+- techTextFont: "Segoe UI"
+  $name: Tech style - text font
+  $description: Used for the greeting, date and time. A wide geometric font (Montserrat, Gotham...) matches the skin best. Put it in the custom fonts folder.
+- techBigColor: "FFFFFF"
+  $name: Tech style - big weekday color (hex RRGGBB)
+- techTextColor: "FFFFFF"
+  $name: Tech style - text and lines color (hex RRGGBB)
+- customFont: ""
+  $name: Custom style - main font
+  $description: Optional default for the big text. Empty = the layout's own font. A font picked in the editor (F / G) overrides this for that wallpaper only. Fonts from the custom fonts folder can be typed here by name.
+- customFont2: ""
+  $name: Custom style - small text font
+  $description: Same, for the small lines (date, weekday...).
+- customColor: "FFFFFF"
+  $name: Custom style - main color (hex RRGGBB)
+- customColor2: "FFFFFF"
+  $name: Custom style - small text color (hex RRGGBB)
+- stackFont: "Impact"
+  $name: Stack style - font
+  $description: A heavy condensed font works best (Impact, Anton, Bebas Neue...). Fonts from the custom fonts folder can be used by name.
+- stackColor1: "C8C2C2"
+  $name: Stack style - color 1 (hex RRGGBB)
+  $description: First digit of the top row and second digit of the bottom row.
+- stackColor2: "FFB9AA"
+  $name: Stack style - color 2 (hex RRGGBB)
+  $description: Second digit of the top row and first digit of the bottom row.
+- scriptDayFont: "Segoe Script"
+  $name: Script style - weekday font
+  $description: A script / handwriting font looks best. Install it or put it in the custom fonts folder and type its name here.
+- scriptTimeFont: "Bahnschrift"
+  $name: Script style - time font
+  $description: A thin condensed font looks best (Bebas Neue, Oswald, Roboto Condensed Light...).
+- scriptDateFont: "Bahnschrift"
+  $name: Script style - date line font
+  $description: A condensed font looks best.
+- scriptDayColor: "FFFFFF"
+  $name: Script style - weekday color (hex RRGGBB)
+- scriptTextColor: "FFFFFF"
+  $name: Script style - time and date color (hex RRGGBB)
+- scriptOpacity: 45
+  $name: Script style - time and date opacity (%)
+  $description: 0-100. The date line is drawn a little more solid than the time.
+- wallpaperDelayMs: 500
+  $name: Wallpaper switch - max wait (ms)
+  $description: The clock switches the moment the new wallpaper appears on screen (detected from the screen pixels). This is only the longest it waits if that cannot be detected, for example when a window covers the desktop. 0 = switch as soon as the change is noticed, with no pixel detection.
+- textShadow: true
+  $name: Soft text shadow
+- editHotkey: "Ctrl+Alt+Shift+C"
+  $name: Layout editor shortcut
+  $description: Modifiers Ctrl, Alt, Shift, Win plus one key (A-Z, 0-9, F1-F24).
+- defaultHotkey: "Ctrl+Alt+Shift+D"
+  $name: Default clock shortcut
+  $description: Puts the clock of the current wallpaper back to your default clock (set the default with D in the layout editor). Same format as the editor shortcut.
+- sameForAll: false
+  $name: Same clock on every wallpaper
+  $description: Ignore per-wallpaper layouts and always use the default clock.
+- placement: aboveIcons
+  $name: Clock layer
+  $description: Leave on the default. If the clock is not visible, try the other option.
+  $options:
+  - aboveIcons: Just above the desktop icons (default)
+  - bottom: Bottom of the window stack
+*/
+// ==/WindhawkModSettings==
+
+#define NOMINMAX
+#include <windows.h>
+#include <commdlg.h>
+#include <d2d1.h>
+#include <d2d1helper.h>
+#include <dwrite.h>
+#include <dwrite_3.h>
+
+#include <algorithm>
+#include <atomic>
+#include <string>
+
+// ---------------------------------------------------------------------------
+// Constants / types
+// ---------------------------------------------------------------------------
+
+static const wchar_t kCtrlClass[]   = L"WhDesktopClock_Ctrl";
+static const wchar_t kClockClass[]  = L"WhDesktopClock_Clock";
+static const wchar_t kEditorClass[] = L"WhDesktopClock_Editor";
+
+// Dates and times are always formatted in English, whatever the Windows display language is.
+static const wchar_t kLocale[] = L"en-US";
+
+#define WM_APP_RELOAD (WM_APP + 1)
+#define TIMER_TICK 1
+#define TIMER_WALL 2   // one-shot: switch the clock layout after the wallpaper delay
+#define TIMER_WPOLL 3  // short fast poll right after the shell announces a wallpaper change
+#define HOTKEY_ID 1
+#define HOTKEY_DEFAULT_ID 2
+#define kRecreateTarget ((HRESULT)0x8899000CL)  // D2DERR_RECREATE_TARGET
+
+static const int kMinW = 120, kMinH = 50, kMaxW = 3000, kMaxH = 1500;
+static const int kDefaultW = 360, kDefaultH = 150;
+static const int kMargin = 14, kHintH = 114, kHintMinW = 440;
+
+// Styles. To add a new one: bump kStyleCount, add a name + default size below,
+// write a DrawClockXxx() function and add it to the switch in DrawClockText().
+enum Style { STYLE_CLASSIC = 0, STYLE_BOLD = 1, STYLE_POSTER = 2, STYLE_TECH = 3, STYLE_CUSTOM = 4, STYLE_STACK = 5, STYLE_SCRIPT = 6 };
+static const int kStyleCount = 7;
+static const wchar_t* const kStyleNames[kStyleCount] = {L"Classic", L"Bold", L"Poster", L"Tech", L"Custom", L"Stack", L"Script"};
+static const int kStyleDefW[kStyleCount] = {360, 320, 480, 300, 420, 320, 520};
+static const int kStyleDefH[kStyleCount] = {150, 150, 360, 475, 200, 330, 280};
+
+// Colors of each style (1 or 2 slots). Name = label in the editor hint, Setting = the settings key that
+// holds the DEFAULT color of that slot, Fallback = used if that setting is empty.
+//
+// HOW TO ADD A NEW STYLE:
+//  1. Add it to the enum, bump kStyleCount, and add one entry to EVERY table above and below.
+//  2. Add its default color setting(s) to the settings block at the top of the file.
+//  3. Write DrawClockXxx(); use StyleBrush(slot, alpha) / StyleRgb(slot) for colors.
+//  4. Add a case for it in DrawClockText().
+// Position, size, style and colors are then saved per wallpaper and editable in the editor automatically.
+static const int kStyleColorCount[kStyleCount] = {1, 1, 2, 2, 2, 2, 2};
+static const wchar_t* const kStyleColorNames[kStyleCount][2] = {
+    {L"Text", L""}, {L"Text", L""}, {L"Number", L"Text"}, {L"Big day", L"Text"}, {L"Main", L"Small"},
+    {L"Color 1", L"Color 2"}, {L"Day", L"Text"}};
+static const wchar_t* const kStyleColorSetting[kStyleCount][2] = {
+    {L"textColor", nullptr}, {L"boldTextColor", nullptr}, {L"posterNumberColor", L"posterTextColor"},
+    {L"techBigColor", L"techTextColor"}, {L"customColor", L"customColor2"}, {L"stackColor1", L"stackColor2"}, {L"scriptDayColor", L"scriptTextColor"}};
+static const unsigned kStyleColorFallback[kStyleCount][2] = {
+    {0xFFFFFFu, 0u}, {0xFFFFFFu, 0u}, {0x2F6DB5u, 0xFF9A3Cu}, {0xFFFFFFu, 0xFFFFFFu}, {0xFFFFFFu, 0xFFFFFFu},
+    {0xC8C2C2u, 0xFFB9AAu}, {0xFFFFFFu, 0xFFFFFFu}};
+static const unsigned kColorSet = 0x01000000u;  // flag bit: "a per-wallpaper color is set" (0 = use default)
+
+// ---- Custom style: layouts are just data. Add your own by copying a preset below. ----
+//
+// Text templates use {tokens}:
+//   {T} 08:59   {t} 8:59   (24h / seconds follow the settings)    {hh} {h} {min}
+//   {ampm} AM   {a.m.} A.M. (both empty in 24-hour mode)
+//   {weekday} Sunday  {wd} Sun  {day} 5  {dd} 05  {month} June  {mon} Jun  {mn} 6  {mm} 06  {yyyy} {yy}
+//   {greet} Morning / Afternoon / Evening / Night
+struct CLine {
+    const wchar_t* text;  // template
+    float x, y;           // anchor in the box (0..1): x = left / center / right edge, y = middle of the capitals
+    float cap;            // height of capitals / digits, as a fraction of the box HEIGHT
+    int align;            // 0 = left, 1 = center, 2 = right
+    int font;             // 0 = main font, 1 = small font
+    int weight;           // 100..900 (400 regular, 700 bold, 900 black)
+    float track;          // letter spacing in em (0.1 = a bit wider)
+    float alpha;          // 0..1
+    int color;            // 0 = Main color, 1 = Small color
+    float maxW;           // text is squeezed to fit this fraction of the box width
+    float fade;           // 1 = solid, 0.45 = fades to 45% at the bottom of the letters
+    bool upper;           // force UPPER CASE
+    bool isDate;          // hidden when "Show date" is off
+};
+struct CPreset {
+    const wchar_t* name;
+    int w, h;              // default box size
+    const wchar_t* font[2];  // default fonts (main, small)
+    bool shadow;
+    int n;                 // number of lines used (max 5)
+    CLine lines[5];
+};
+
+static const CPreset kPresets[] = {
+    {L"Pixel", 420, 200, {L"Bahnschrift", L"Consolas"}, true, 2, {
+        {L"{T}", 0.5f, 0.37f, 0.50f, 1, 0, 900, 0.00f, 1.0f, 0, 0.94f, 1.0f, false, false},
+        {L"{ampm} | {weekday} | {day} {month} {yyyy}", 0.5f, 0.82f, 0.075f, 1, 1, 600, 0.12f, 0.9f, 1, 0.94f, 1.0f, false, true}}},
+
+    {L"Soft", 460, 190, {L"Bahnschrift", L"Bahnschrift"}, false, 2, {
+        {L"{t} {a.m.}", 0.5f, 0.40f, 0.44f, 1, 0, 700, -0.01f, 1.0f, 0, 0.96f, 1.0f, false, false},
+        {L"{wd}, {dd}/{mm}", 0.5f, 0.86f, 0.095f, 1, 1, 500, 0.02f, 0.85f, 1, 0.90f, 1.0f, false, true}}},
+
+    {L"Mono", 340, 170, {L"Consolas", L"Segoe UI"}, false, 2, {
+        {L"{T}", 0.04f, 0.40f, 0.46f, 0, 0, 700, 0.00f, 1.0f, 0, 0.92f, 1.0f, false, false},
+        {L"{weekday} {mm}/{dd}", 0.045f, 0.87f, 0.10f, 0, 1, 600, 0.00f, 0.9f, 1, 0.90f, 1.0f, false, true}}},
+
+    {L"Stacked", 300, 420, {L"Bahnschrift", L"Bahnschrift"}, true, 3, {
+        {L"{hh}", 0.5f, 0.24f, 0.28f, 1, 0, 800, 0.00f, 1.0f, 0, 0.90f, 1.0f, false, false},
+        {L"{min}", 0.5f, 0.58f, 0.28f, 1, 0, 800, 0.00f, 0.55f, 0, 0.90f, 1.0f, false, false},
+        {L"{weekday}  /  {day} {month}", 0.5f, 0.89f, 0.032f, 1, 1, 600, 0.28f, 0.9f, 1, 0.94f, 1.0f, true, true}}},
+
+    {L"Split", 560, 170, {L"Segoe UI", L"Segoe UI"}, true, 4, {
+        {L"{T}", 0.03f, 0.50f, 0.50f, 0, 0, 800, -0.01f, 1.0f, 0, 0.60f, 1.0f, false, false},
+        {L"{weekday}", 0.97f, 0.30f, 0.12f, 2, 1, 700, 0.14f, 1.0f, 1, 0.34f, 1.0f, true, true},
+        {L"{day} {month}", 0.97f, 0.52f, 0.12f, 2, 1, 500, 0.14f, 0.85f, 1, 0.34f, 1.0f, true, true},
+        {L"{ampm}", 0.97f, 0.74f, 0.12f, 2, 1, 500, 0.14f, 0.60f, 1, 0.34f, 1.0f, true, false}}},
+
+    // Same look as the Bold style (small spaced date on top, big black time), but with no fade.
+    // Both lines use the main font, so one font pick (F / G in the editor) changes the whole clock.
+    {L"Bold", 320, 150, {L"Segoe UI", L"Segoe UI"}, false, 2, {
+        {L"{t}", 0.5f, 0.58f, 0.50f, 1, 0, 900, -0.02f, 1.0f, 0, 0.94f, 1.0f, false, false},
+        {L"{wd} {day} {mon}", 0.5f, 0.2125f, 0.085f, 1, 0, 600, 0.38f, 0.90f, 0, 0.94f, 1.0f, true, true}}},
+};
+static const int kCustomPresetCount = (int)(sizeof(kPresets) / sizeof(kPresets[0]));
+
+// "W" key in the editor: weight override for the big text (0 = use the layout's own weight)
+static const int kWeightChoices[4] = {0, 400, 700, 900};
+
+// Layout = position + size + style (+ Custom style data). This is what gets saved per wallpaper.
+struct Layout {
+    int x, y, w, h, style;  // screen (virtual-desktop) pixels
+    unsigned color[kStyleCount][2];
+    int preset;             // Custom style: which layout
+    int cweight;            // Custom style: weight override (index into kWeightChoices)
+    wchar_t font[2][64];    // Custom style: font names picked for this wallpaper (empty = default)
+};
+
+struct EdGeom {
+    int x, y, w, h;   // editor window rect (screen)
+    int ox, oy;       // where the clock box sits inside the editor window
+    bool hintAbove;
+};
+
+struct Settings {
+    bool use24h = false;
+    bool showSeconds = false;
+    bool showDate = true;
+    bool shadow = true;
+    std::wstring dateFormat = L"dddd, d MMMM";
+    std::wstring dateFormatBold = L"ddd d MMM";
+    std::wstring fontFolder;
+    unsigned defColor[kStyleCount][2] = {};  // default color of every style slot (from the settings)
+    std::wstring posterNumberFont = L"Impact";
+    std::wstring posterTextFont = L"Segoe UI";
+    std::wstring techTextFont = L"Segoe UI";
+    std::wstring boldFont = L"Segoe UI";
+    std::wstring customFont, customFont2;  // Custom style default fonts (empty = the layout's own)
+    std::wstring stackFont = L"Impact";    // Stack style font
+    std::wstring scriptDayFont = L"Segoe Script";   // Script style fonts
+    std::wstring scriptTimeFont = L"Bahnschrift";
+    std::wstring scriptDateFont = L"Bahnschrift";
+    int scriptOpacity = 45;                         // Script style: time / date opacity (%)
+    int wallDelay = 500;                   // ms to wait before switching the layout after a wallpaper change
+    std::wstring techBigFont = L"Electroharmonix";
+    float nr = 0.18f, ng = 0.43f, nb = 0.71f;  // poster: number color (blue)
+    float ar = 1.0f, ag = 0.60f, ab = 0.24f;   // poster: text color (orange)
+    std::wstring fontName = L"Segoe UI";
+    std::wstring hotkey = L"Ctrl+Alt+Shift+C";
+    std::wstring placement = L"aboveIcons";
+    float r = 1.0f, g = 1.0f, b = 1.0f;     // Classic style color
+    float br = 1.0f, bg = 1.0f, bb = 1.0f;  // Bold style color
+    std::wstring defHotkey = L"Ctrl+Alt+Shift+D";
+    bool sameForAll = false;
+};
+
+enum Hit { H_NONE, H_MOVE, H_TL, H_TR, H_BL, H_BR };
+
+struct DragState {
+    Hit mode = H_NONE;
+    POINT cur0 = {0, 0};
+    Layout l0 = {0, 0, 0, 0, 0};
+};
+
+struct Frame {
+    HDC dc = nullptr;
+    HBITMAP bmp = nullptr;
+    HGDIOBJ old = nullptr;
+    void* bits = nullptr;
+};
+
+// ---------------------------------------------------------------------------
+// Globals (all touched only from the worker thread, except g_stop/g_ctrl)
+// ---------------------------------------------------------------------------
+
+static HANDLE g_thread = nullptr;
+static DWORD g_threadId = 0;
+static std::atomic<bool> g_stop{false};
+
+static HWND g_ctrl = nullptr;    // hidden controller (timer, hotkey, broadcasts)
+static HWND g_clock = nullptr;   // the widget: a plain top-level layered window
+static HWND g_editor = nullptr;  // top-level overlay used in layout mode
+
+static Settings g_settings;
+static Layout g_layout = {100, 100, kDefaultW, kDefaultH, 0};
+static Layout g_backup = {0, 0, 0, 0, 0};
+static std::wstring g_wallKey;
+static std::wstring g_editKey;
+static std::wstring g_lastTime, g_lastDate;
+static unsigned long long g_lastKey = 0;  // quick "did the displayed second / minute change?" key
+static int g_wallTick = 0, g_wpollLeft = 0;  // wallpaper poll counters
+static bool g_wallPending = false;           // new wallpaper noticed, layout switch is waiting for its delay
+// small cache for ResolveFont (the lookup can scan every installed font)
+static std::wstring g_rfKey[4], g_rfFam[4];
+static DWRITE_FONT_WEIGHT g_rfW[4];
+static int g_rfUsed = 0, g_rfNext = 0;
+static bool g_attachedOnce = false;
+static bool g_dpiSet = false;
+static bool g_editing = false;
+static DragState g_drag;
+static int g_hexSlot = -1;     // >= 0 while a hex color is being typed (the color slot it is for)
+static std::wstring g_hexBuf;  // hex digits typed so far
+static unsigned g_hexOld = 0;  // the slot's color before typing (restored if cancelled)
+
+static ID2D1Factory* g_d2d = nullptr;
+static IDWriteFactory* g_dw = nullptr;
+static ID2D1DCRenderTarget* g_rt = nullptr;
+static IDWriteFontCollection* g_customFonts = nullptr;  // fonts from the custom folder (optional)
+static std::wstring g_day, g_month, g_weekday;           // poster / tech style text pieces
+static std::wstring g_greet;                             // tech style: MORNING / AFTERNOON / EVENING / NIGHT
+
+template <class T>
+static void SafeRelease(T*& p) {
+    if (p) {
+        p->Release();
+        p = nullptr;
+    }
+}
+
+static int Clampi(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+static std::wstring GetStr(PCWSTR name, PCWSTR def) {
+    PCWSTR s = Wh_GetStringSetting(name);
+    std::wstring r = (s && *s) ? s : def;
+    if (s) Wh_FreeStringSetting(s);
+    return r;
+}
+
+static void LoadSettings() {
+    g_settings.use24h = Wh_GetIntSetting(L"use24Hour") != 0;
+    g_settings.showSeconds = Wh_GetIntSetting(L"showSeconds") != 0;
+    g_settings.showDate = Wh_GetIntSetting(L"showDate") != 0;
+    g_settings.shadow = Wh_GetIntSetting(L"textShadow") != 0;
+    g_settings.dateFormat = GetStr(L"dateFormat", L"dddd, d MMMM");
+    g_settings.dateFormatBold = GetStr(L"dateFormatBold", L"ddd d MMM");
+    g_settings.fontFolder = GetStr(L"fontFolder", L"");
+    g_settings.posterNumberFont = GetStr(L"posterNumberFont", L"Impact");
+    g_settings.posterTextFont = GetStr(L"posterTextFont", L"Segoe UI");
+    g_settings.techTextFont = GetStr(L"techTextFont", L"Segoe UI");
+    g_settings.boldFont = GetStr(L"boldFont", L"Segoe UI");
+    g_settings.techBigFont = GetStr(L"techBigFont", L"Electroharmonix");
+    g_settings.customFont = GetStr(L"customFont", L"");
+    g_settings.customFont2 = GetStr(L"customFont2", L"");
+    g_settings.stackFont = GetStr(L"stackFont", L"Impact");
+    g_settings.scriptDayFont = GetStr(L"scriptDayFont", L"Segoe Script");
+    g_settings.scriptTimeFont = GetStr(L"scriptTimeFont", L"Bahnschrift");
+    g_settings.scriptDateFont = GetStr(L"scriptDateFont", L"Bahnschrift");
+    g_settings.scriptOpacity = Clampi(Wh_GetIntSetting(L"scriptOpacity"), 0, 100);
+    g_settings.wallDelay = Clampi(Wh_GetIntSetting(L"wallpaperDelayMs"), 0, 5000);
+    g_settings.defHotkey = GetStr(L"defaultHotkey", L"Ctrl+Alt+Shift+D");
+    g_settings.sameForAll = Wh_GetIntSetting(L"sameForAll") != 0;
+    auto hex = [](const std::wstring& s, float& r, float& g, float& b) {
+        const wchar_t* p = s.c_str();
+        if (*p == L'#') p++;
+        unsigned long v = wcstoul(p, nullptr, 16);
+        r = ((v >> 16) & 255) / 255.0f;
+        g = ((v >> 8) & 255) / 255.0f;
+        b = (v & 255) / 255.0f;
+    };
+    hex(GetStr(L"posterNumberColor", L"2F6DB5"), g_settings.nr, g_settings.ng, g_settings.nb);
+    hex(GetStr(L"posterTextColor", L"FF9A3C"), g_settings.ar, g_settings.ag, g_settings.ab);
+    for (int st = 0; st < kStyleCount; st++) {
+        for (int j = 0; j < kStyleColorCount[st]; j++) {
+            std::wstring cs = GetStr(kStyleColorSetting[st][j], L"");
+            const wchar_t* cp = cs.c_str();
+            if (*cp == L'#') cp++;
+            g_settings.defColor[st][j] =
+                *cp ? (unsigned)(wcstoul(cp, nullptr, 16) & 0xFFFFFFu) : kStyleColorFallback[st][j];
+        }
+    }
+    hex(GetStr(L"boldTextColor", L"FFFFFF"), g_settings.br, g_settings.bg, g_settings.bb);
+    g_settings.fontName = GetStr(L"fontName", L"Segoe UI");
+    g_settings.hotkey = GetStr(L"editHotkey", L"Ctrl+Alt+Shift+C");
+    g_settings.placement = GetStr(L"placement", L"aboveIcons");
+
+    std::wstring col = GetStr(L"textColor", L"FFFFFF");
+    const wchar_t* p = col.c_str();
+    if (*p == L'#') p++;
+    unsigned long v = wcstoul(p, nullptr, 16);
+    g_settings.r = ((v >> 16) & 255) / 255.0f;
+    g_settings.g = ((v >> 8) & 255) / 255.0f;
+    g_settings.b = (v & 255) / 255.0f;
+}
+
+static bool ParseHotkey(const std::wstring& s, UINT* mods, UINT* vk) {
+    *mods = MOD_NOREPEAT;
+    *vk = 0;
+    size_t i = 0;
+    while (i <= s.size()) {
+        size_t j = s.find(L'+', i);
+        if (j == std::wstring::npos) j = s.size();
+        std::wstring tok = s.substr(i, j - i);
+        i = j + 1;
+
+        std::wstring t;
+        for (wchar_t c : tok) {
+            if (c == L' ') continue;
+            if (c >= L'a' && c <= L'z') c = c - L'a' + L'A';
+            t += c;
+        }
+        if (t.empty()) continue;
+
+        if (t == L"CTRL" || t == L"CONTROL") *mods |= MOD_CONTROL;
+        else if (t == L"ALT") *mods |= MOD_ALT;
+        else if (t == L"SHIFT") *mods |= MOD_SHIFT;
+        else if (t == L"WIN") *mods |= MOD_WIN;
+        else if (t.size() == 1 && ((t[0] >= L'A' && t[0] <= L'Z') || (t[0] >= L'0' && t[0] <= L'9'))) *vk = t[0];
+        else if (t[0] == L'F' && t.size() >= 2) {
+            int n = (int)wcstol(t.c_str() + 1, nullptr, 10);
+            if (n >= 1 && n <= 24) *vk = VK_F1 + (n - 1);
+        }
+    }
+    return *vk != 0;
+}
+
+static void RegisterEditHotkey() {
+    if (!g_ctrl) return;
+    UnregisterHotKey(g_ctrl, HOTKEY_ID);
+    UnregisterHotKey(g_ctrl, HOTKEY_DEFAULT_ID);
+    UINT mods, vk;
+    if (ParseHotkey(g_settings.hotkey, &mods, &vk)) {
+        if (!RegisterHotKey(g_ctrl, HOTKEY_ID, mods, vk))
+            Wh_Log(L"RegisterHotKey (editor) failed (%lu) - shortcut probably in use", GetLastError());
+    } else {
+        Wh_Log(L"Invalid editor hotkey: %s", g_settings.hotkey.c_str());
+    }
+    if (ParseHotkey(g_settings.defHotkey, &mods, &vk)) {
+        if (!RegisterHotKey(g_ctrl, HOTKEY_DEFAULT_ID, mods, vk))
+            Wh_Log(L"RegisterHotKey (default) failed (%lu) - shortcut probably in use", GetLastError());
+    } else {
+        Wh_Log(L"Invalid default-clock hotkey: %s", g_settings.defHotkey.c_str());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Wallpaper identity + per-wallpaper profiles
+// ---------------------------------------------------------------------------
+
+static std::wstring Lower(std::wstring v) {
+    for (auto& c : v) {
+        if (c >= L'A' && c <= L'Z') c += 32;
+    }
+    return v;
+}
+
+static bool IsTranscoded(const std::wstring& path) {
+    return Lower(path).find(L"transcodedwallpaper") != std::wstring::npos;
+}
+
+static std::wstring ReadRegString(HKEY root, PCWSTR sub, PCWSTR name) {
+    std::wstring out;
+    HKEY hk;
+    if (RegOpenKeyExW(root, sub, 0, KEY_QUERY_VALUE, &hk) == ERROR_SUCCESS) {
+        wchar_t buf[1024];
+        DWORD sz = 2046, type = 0;
+        if (RegQueryValueExW(hk, name, nullptr, &type, reinterpret_cast<BYTE*>(buf), &sz) == ERROR_SUCCESS &&
+            (type == REG_SZ || type == REG_EXPAND_SZ)) {
+            buf[sz / sizeof(wchar_t)] = 0;
+            out = buf;
+        }
+        RegCloseKey(hk);
+    }
+    return out;
+}
+
+// Original image path that Windows keeps in a binary registry value (UTF-16 text after a 24-byte header).
+static std::wstring ReadTranscodedCachePath() {
+    HKEY hk;
+    std::wstring out;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\Desktop", 0, KEY_QUERY_VALUE, &hk) == ERROR_SUCCESS) {
+        BYTE buf[2048];
+        DWORD sz = sizeof(buf), type = 0;
+        LONG r = RegQueryValueExW(hk, L"TranscodedImageCache", nullptr, &type, buf, &sz);
+        RegCloseKey(hk);
+        if (r == ERROR_SUCCESS && type == REG_BINARY && sz > 26) {
+            const wchar_t* p = (const wchar_t*)(buf + 24);
+            size_t maxChars = (sz - 24) / 2;
+            size_t n = 0;
+            while (n < maxChars && p[n]) n++;
+            out.assign(p, n);
+        }
+    }
+    return out;
+}
+
+// Fingerprint of the file Windows renders the current wallpaper into. It changes with every wallpaper
+// change (slideshow, Spotlight, themes...) even when the registry paths do not. Cached by timestamp+size.
+static std::wstring TranscodedFingerprint() {
+    static FILETIME lastFt = {};
+    static ULONGLONG lastSize = 0;
+    static std::wstring lastFp;
+    static bool have = false;
+
+    wchar_t appdata[MAX_PATH];
+    DWORD n = GetEnvironmentVariableW(L"APPDATA", appdata, MAX_PATH);
+    if (!n || n >= MAX_PATH) return L"";
+    std::wstring path = std::wstring(appdata) + L"\\Microsoft\\Windows\\Themes\\TranscodedWallpaper";
+
+    WIN32_FILE_ATTRIBUTE_DATA fa;
+    if (!GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa)) {
+        have = false;
+        lastFp.clear();
+        return L"";
+    }
+    ULONGLONG size = ((ULONGLONG)fa.nFileSizeHigh << 32) | fa.nFileSizeLow;
+    if (have && CompareFileTime(&fa.ftLastWriteTime, &lastFt) == 0 && size == lastSize) return lastFp;
+
+    HANDLE h = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                           nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) return lastFp;  // being rewritten right now: keep the previous value
+
+    unsigned long long hash = 1469598103934665603ULL ^ size;
+    BYTE buf[4096];
+    LONGLONG offs[3] = {0, (LONGLONG)(size / 2), (LONGLONG)(size > 4096 ? size - 4096 : 0)};
+    for (int i = 0; i < 3; i++) {
+        LARGE_INTEGER li;
+        li.QuadPart = offs[i];
+        DWORD got = 0;
+        if (SetFilePointerEx(h, li, nullptr, FILE_BEGIN) && ReadFile(h, buf, sizeof(buf), &got, nullptr)) {
+            for (DWORD k = 0; k < got; k++) {
+                hash ^= buf[k];
+                hash *= 1099511628211ULL;
+            }
+        }
+    }
+    CloseHandle(h);
+
+    wchar_t out[48];
+    wsprintfW(out, L"fp_%08x%08x", (UINT)(hash >> 32), (UINT)(hash & 0xFFFFFFFFULL));
+    lastFp = out;
+    lastFt = fa.ftLastWriteTime;
+    lastSize = size;
+    have = true;
+    return lastFp;
+}
+
+// Identity of the current wallpaper. Uses the real image path(s) when Windows exposes them,
+// otherwise (slideshow / Spotlight) a fingerprint of the rendered wallpaper file.
+static std::wstring GetWallpaperId(std::wstring* dbg) {
+    std::wstring a = ReadTranscodedCachePath();
+    std::wstring b = ReadRegString(HKEY_CURRENT_USER, L"Control Panel\\Desktop", L"WallPaper");
+    if (b.empty()) {
+        wchar_t p[MAX_PATH] = {};
+        if (SystemParametersInfoW(SPI_GETDESKWALLPAPER, MAX_PATH, p, 0)) b = p;
+    }
+    if (dbg) *dbg = L"cache=" + a + L" | wallpaper=" + b;
+
+    std::wstring id;
+    if (!a.empty() && !IsTranscoded(a)) id = Lower(a);
+    if (!b.empty() && !IsTranscoded(b)) {
+        if (!id.empty()) id += L"|";
+        id += Lower(b);
+    }
+    if (id.empty()) {
+        std::wstring fp = TranscodedFingerprint();
+        id = fp.empty() ? L"(solid color)" : fp;
+    }
+    return id;
+}
+
+static std::wstring MakeKey(const std::wstring& path) {
+    unsigned long long h = 1469598103934665603ULL;  // FNV-1a
+    for (wchar_t c : path) {
+        if (c >= L'A' && c <= L'Z') c += 32;
+        h ^= (unsigned long long)c;
+        h *= 1099511628211ULL;
+    }
+    wchar_t buf[48];
+    wsprintfW(buf, L"wp_%08x%08x", (UINT)(h >> 32), (UINT)(h & 0xFFFFFFFFULL));
+    return buf;
+}
+
+// Profile format: "x,y,w,h,style". Older profiles ("x,y,w,h") have no style and load as Classic.
+static bool ParseLayout(const wchar_t* s, Layout* L) {
+    long v[5] = {0, 0, 0, 0, 0};
+    int count = 0;
+    for (int i = 0; i < 5; i++) {
+        wchar_t* e = nullptr;
+        v[i] = wcstol(s, &e, 10);
+        if (e == s) return false;
+        count++;
+        s = e;
+        if (*s == L',') s++;
+        else break;
+    }
+    if (count < 4) return false;
+    L->x = v[0];
+    L->y = v[1];
+    L->w = v[2];
+    L->h = v[3];
+    L->style = (count >= 5) ? Clampi((int)v[4], 0, kStyleCount - 1) : 0;
+    // then one hex color per style slot; missing / 0 = default color
+    for (int st = 0; st < kStyleCount; st++) {
+        for (int j = 0; j < 2; j++) {
+            unsigned c = 0;
+            if (*s && *s != L'|') {
+                wchar_t* e = nullptr;
+                c = wcstoul(s, &e, 16);
+                if (e == s) {
+                    c = 0;
+                } else {
+                    s = e;
+                    if (*s == L',') s++;
+                }
+            }
+            L->color[st][j] = (c & kColorSet) ? c : 0;
+        }
+    }
+
+    // Custom style part: "|preset,weight|font1|font2"  (older profiles have none)
+    L->preset = 0;
+    L->cweight = 0;
+    L->font[0][0] = L->font[1][0] = 0;
+    if (*s == L'|') {
+        s++;
+        wchar_t* e = nullptr;
+        long pv = wcstol(s, &e, 10);
+        if (e != s) {
+            L->preset = (int)pv;
+            s = e;
+            if (*s == L',') s++;
+        }
+        long wv = wcstol(s, &e, 10);
+        if (e != s) {
+            L->cweight = (int)wv;
+            s = e;
+        }
+        for (int i = 0; i < 2; i++) {
+            if (*s != L'|') break;
+            s++;
+            int n = 0;
+            while (*s && *s != L'|' && n < 63) L->font[i][n++] = *s++;
+            L->font[i][n] = 0;
+            while (*s && *s != L'|') s++;
+        }
+    }
+    L->preset = Clampi(L->preset, 0, kCustomPresetCount - 1);
+    L->cweight = Clampi(L->cweight, 0, 3);
+    return true;
+}
+
+static bool LoadProfile(const std::wstring& key, Layout* L) {
+    wchar_t buf[512] = {};
+    if (Wh_GetStringValue(key.c_str(), buf, 512) == 0) return false;
+    return ParseLayout(buf, L);
+}
+
+static void SaveProfile(const std::wstring& key, const Layout& L) {
+    if (key.empty()) return;
+    wchar_t buf[512];
+    int n = wsprintfW(buf, L"%d,%d,%d,%d,%d", L.x, L.y, L.w, L.h, L.style);
+    for (int st = 0; st < kStyleCount && n < 300; st++) {
+        for (int j = 0; j < 2 && n < 300; j++) n += wsprintfW(buf + n, L",%x", L.color[st][j]);
+    }
+    wsprintfW(buf + n, L"|%d,%d|%s|%s", L.preset, L.cweight, L.font[0], L.font[1]);
+    Wh_SetStringValue(key.c_str(), buf);
+}
+
+// ---------------------------------------------------------------------------
+// Layout helpers
+// ---------------------------------------------------------------------------
+
+static Layout DefaultLayout(int style, int preset = 0) {
+    style = Clampi(style, 0, kStyleCount - 1);
+    MONITORINFO mi = {sizeof(mi)};
+    HMONITOR m = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
+    GetMonitorInfoW(m, &mi);
+    Layout L;
+    L.style = style;
+    for (int s = 0; s < kStyleCount; s++) L.color[s][0] = L.color[s][1] = 0;  // 0 = default color
+    L.w = kStyleDefW[style];
+    L.h = kStyleDefH[style];
+    L.preset = Clampi(preset, 0, kCustomPresetCount - 1);
+    L.cweight = 0;
+    L.font[0][0] = L.font[1][0] = 0;
+    if (style == STYLE_CUSTOM) {
+        L.w = kPresets[L.preset].w;
+        L.h = kPresets[L.preset].h;
+    }
+    L.x = mi.rcWork.left + ((mi.rcWork.right - mi.rcWork.left) - L.w) / 2;
+    L.y = mi.rcWork.top + (mi.rcWork.bottom - mi.rcWork.top) / 6;
+    return L;
+}
+
+static void ClampLayoutToScreen(Layout& L) {
+    L.w = Clampi(L.w, kMinW, kMaxW);
+    L.h = Clampi(L.h, kMinH, kMaxH);
+    L.style = Clampi(L.style, 0, kStyleCount - 1);
+    RECT r = {L.x, L.y, L.x + L.w, L.y + L.h};
+    if (!MonitorFromRect(&r, MONITOR_DEFAULTTONULL)) {
+        // Completely off-screen (monitor removed?) -> bring back to the primary monitor
+        MONITORINFO mi = {sizeof(mi)};
+        HMONITOR m = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
+        GetMonitorInfoW(m, &mi);
+        L.x = mi.rcWork.left + ((mi.rcWork.right - mi.rcWork.left) - L.w) / 2;
+        L.y = mi.rcWork.top + (mi.rcWork.bottom - mi.rcWork.top) / 6;
+    }
+}
+
+static const wchar_t kDefaultKey[] = L"default_layout";
+
+// The saved default clock (position, size, style, colors), if there is one.
+static bool LoadDefaultLayout(Layout* L) {
+    if (!LoadProfile(kDefaultKey, L)) return false;
+    ClampLayoutToScreen(*L);
+    return true;
+}
+
+static EdGeom ComputeEdGeom(const Layout& L) {
+    EdGeom g;
+    g.w = std::max(L.w + 2 * kMargin, kHintMinW);
+    g.ox = (g.w - L.w) / 2;
+    g.h = L.h + 2 * kMargin + kHintH;
+
+    RECT r = {L.x, L.y, L.x + L.w, L.y + L.h};
+    HMONITOR mon = MonitorFromRect(&r, MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = {sizeof(mi)};
+    GetMonitorInfoW(mon, &mi);
+    g.hintAbove = (L.y + L.h + kMargin + kHintH > mi.rcMonitor.bottom);
+    g.oy = kMargin + (g.hintAbove ? kHintH : 0);
+    g.x = L.x - g.ox;
+    g.y = L.y - g.oy;
+    return g;
+}
+
+// ---------------------------------------------------------------------------
+// Graphics (Direct2D on a DIB, pushed with UpdateLayeredWindow = per-pixel alpha)
+// ---------------------------------------------------------------------------
+
+// ---- Fonts: optional custom folder + helpers --------------------------------
+
+static std::wstring UpperText(std::wstring v) {
+    for (auto& c : v) {
+        if (c >= L'a' && c <= L'z') c -= 32;
+    }
+    return v;
+}
+
+// The custom collection if it contains this family, otherwise nullptr (= installed fonts).
+static IDWriteFontCollection* FindCollection(const std::wstring& name) {
+    if (!g_customFonts) return nullptr;
+    UINT32 idx = 0;
+    BOOL exists = FALSE;
+    if (SUCCEEDED(g_customFonts->FindFamilyName(name.c_str(), &idx, &exists)) && exists) return g_customFonts;
+    return nullptr;
+}
+
+// Loads every .ttf/.otf/.ttc in the "Custom fonts folder" so they can be used by name.
+static void LoadCustomFonts() {
+    SafeRelease(g_customFonts);
+    std::wstring folder = g_settings.fontFolder;
+    while (!folder.empty() && (folder.back() == L'\\' || folder.back() == L'/')) folder.pop_back();
+    if (folder.empty() || !g_dw) return;
+
+    IDWriteFactory5* f5 = nullptr;
+    if (FAILED(g_dw->QueryInterface(__uuidof(IDWriteFactory5), reinterpret_cast<void**>(&f5))) || !f5) {
+        Wh_Log(L"Custom fonts need Windows 10 1703 or newer");
+        return;
+    }
+    IDWriteFontSetBuilder1* builder = nullptr;
+    if (SUCCEEDED(f5->CreateFontSetBuilder(&builder)) && builder) {
+        int count = 0;
+        WIN32_FIND_DATAW fd;
+        HANDLE h = FindFirstFileW((folder + L"\\*").c_str(), &fd);
+        if (h != INVALID_HANDLE_VALUE) {
+            do {
+                if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+                std::wstring n = Lower(fd.cFileName);
+                auto ends = [&](const wchar_t* e) {
+                    size_t l = wcslen(e);
+                    return n.size() > l && n.compare(n.size() - l, l, e) == 0;
+                };
+                if (!ends(L".ttf") && !ends(L".otf") && !ends(L".ttc")) continue;
+                IDWriteFontFile* ff = nullptr;
+                if (SUCCEEDED(g_dw->CreateFontFileReference((folder + L"\\" + fd.cFileName).c_str(), nullptr, &ff)) &&
+                    ff) {
+                    if (SUCCEEDED(builder->AddFontFile(ff))) count++;
+                    ff->Release();
+                }
+            } while (FindNextFileW(h, &fd));
+            FindClose(h);
+        }
+        IDWriteFontSet* set = nullptr;
+        if (count > 0 && SUCCEEDED(builder->CreateFontSet(&set)) && set) {
+            IDWriteFontCollection1* coll = nullptr;
+            if (SUCCEEDED(f5->CreateFontCollectionFromFontSet(set, &coll)) && coll) g_customFonts = coll;
+            set->Release();
+        }
+        Wh_Log(L"Custom fonts: %d file(s) found in %s", count, folder.c_str());
+        builder->Release();
+    }
+    f5->Release();
+}
+
+// Height of capitals / digits relative to the font size, read from the font itself,
+// so layouts work with whatever font is chosen.
+static float CapHeightRatio(const std::wstring& name, DWRITE_FONT_WEIGHT weight, DWRITE_FONT_STRETCH stretch) {
+    float ratio = 0.70f;
+    IDWriteFontCollection* sys = nullptr;
+    IDWriteFontCollection* coll = FindCollection(name);
+    if (!coll) {
+        if (FAILED(g_dw->GetSystemFontCollection(&sys)) || !sys) return ratio;
+        coll = sys;
+    }
+    UINT32 idx = 0;
+    BOOL exists = FALSE;
+    if (SUCCEEDED(coll->FindFamilyName(name.c_str(), &idx, &exists)) && exists) {
+        IDWriteFontFamily* fam = nullptr;
+        if (SUCCEEDED(coll->GetFontFamily(idx, &fam)) && fam) {
+            IDWriteFont* font = nullptr;
+            if (SUCCEEDED(fam->GetFirstMatchingFont(weight, stretch, DWRITE_FONT_STYLE_NORMAL, &font)) && font) {
+                DWRITE_FONT_METRICS fm = {};
+                font->GetMetrics(&fm);
+                if (fm.designUnitsPerEm > 0 && fm.capHeight > 0) ratio = (float)fm.capHeight / fm.designUnitsPerEm;
+                font->Release();
+            }
+            fam->Release();
+        }
+    }
+    SafeRelease(sys);
+    return ratio;
+}
+
+// Real vertical extent of the given characters (e.g. the digits), measured from the glyph outlines.
+// top = how far the ink rises above the baseline, bottom = how far it dips below it (both in em).
+static bool InkExtent(const std::wstring& name, DWRITE_FONT_WEIGHT weight, DWRITE_FONT_STRETCH stretch,
+                      const std::wstring& chars, float* top, float* bottom) {
+    if (!g_dw || !g_d2d || chars.empty() || chars.size() > 8) return false;
+    bool ok = false;
+    IDWriteFontCollection* sys = nullptr;
+    IDWriteFontCollection* coll = FindCollection(name);
+    if (!coll) {
+        if (FAILED(g_dw->GetSystemFontCollection(&sys)) || !sys) return false;
+        coll = sys;
+    }
+    UINT32 idx = 0;
+    BOOL exists = FALSE;
+    if (SUCCEEDED(coll->FindFamilyName(name.c_str(), &idx, &exists)) && exists) {
+        IDWriteFontFamily* fam = nullptr;
+        if (SUCCEEDED(coll->GetFontFamily(idx, &fam)) && fam) {
+            IDWriteFont* font = nullptr;
+            if (SUCCEEDED(fam->GetFirstMatchingFont(weight, stretch, DWRITE_FONT_STYLE_NORMAL, &font)) && font) {
+                IDWriteFontFace* face = nullptr;
+                if (SUCCEEDED(font->CreateFontFace(&face)) && face) {
+                    UINT32 cp[8] = {};
+                    UINT16 gi[8] = {};
+                    UINT32 n = (UINT32)chars.size();
+                    for (UINT32 i = 0; i < n; i++) cp[i] = chars[i];
+                    ID2D1PathGeometry* geo = nullptr;
+                    ID2D1GeometrySink* sink = nullptr;
+                    if (SUCCEEDED(face->GetGlyphIndices(cp, n, gi)) && SUCCEEDED(g_d2d->CreatePathGeometry(&geo)) &&
+                        geo && SUCCEEDED(geo->Open(&sink)) && sink) {
+                        const float em = 100.0f;
+                        HRESULT hr = face->GetGlyphRunOutline(em, gi, nullptr, nullptr, n, FALSE, FALSE, sink);
+                        sink->Close();
+                        D2D1_RECT_F b = {};
+                        if (SUCCEEDED(hr) && SUCCEEDED(geo->GetBounds(nullptr, &b))) {
+                            *top = -b.top / em;
+                            *bottom = b.bottom / em;
+                            ok = true;
+                        }
+                    }
+                    SafeRelease(sink);
+                    SafeRelease(geo);
+                    face->Release();
+                }
+                font->Release();
+            }
+            fam->Release();
+        }
+    }
+    SafeRelease(sys);
+    return ok;
+}
+
+// Accepts a family name ("Gobold") OR a full font name ("Gobold Bold") and returns the real family + weight.
+static void ResolveFontScan(const std::wstring& name, std::wstring* family, DWRITE_FONT_WEIGHT* weight) {
+    *family = name;
+    *weight = DWRITE_FONT_WEIGHT_BOLD;
+    if (!g_dw || name.empty()) return;
+    if (FindCollection(name)) return;  // custom folder family: use as is
+
+    IDWriteFontCollection* sys = nullptr;
+    if (FAILED(g_dw->GetSystemFontCollection(&sys)) || !sys) return;
+    UINT32 idx = 0;
+    BOOL ex = FALSE;
+    if (SUCCEEDED(sys->FindFamilyName(name.c_str(), &idx, &ex)) && ex) {  // already a valid family name
+        sys->Release();
+        return;
+    }
+
+    std::wstring want = Lower(name);
+    bool found = false;
+    UINT32 fc = sys->GetFontFamilyCount();
+    for (UINT32 i = 0; i < fc && !found; i++) {
+        IDWriteFontFamily* fam = nullptr;
+        if (FAILED(sys->GetFontFamily(i, &fam)) || !fam) continue;
+        UINT32 n = fam->GetFontCount();
+        for (UINT32 j = 0; j < n && !found; j++) {
+            IDWriteFont* f = nullptr;
+            if (FAILED(fam->GetFont(j, &f)) || !f) continue;
+            IDWriteLocalizedStrings* s = nullptr;
+            BOOL has = FALSE;
+            if (SUCCEEDED(f->GetInformationalStrings(DWRITE_INFORMATIONAL_STRING_FULL_NAME, &s, &has)) && has && s) {
+                UINT32 cnt = s->GetCount();
+                for (UINT32 k = 0; k < cnt && !found; k++) {
+                    UINT32 len = 0;
+                    if (FAILED(s->GetStringLength(k, &len))) continue;
+                    std::wstring v(len + 1, L'\0');
+                    if (FAILED(s->GetString(k, &v[0], len + 1))) continue;
+                    v.resize(len);
+                    if (Lower(v) != want) continue;
+                    found = true;
+                    *weight = f->GetWeight();
+                    IDWriteLocalizedStrings* fn = nullptr;
+                    if (SUCCEEDED(fam->GetFamilyNames(&fn)) && fn) {
+                        UINT32 fl = 0;
+                        if (SUCCEEDED(fn->GetStringLength(0, &fl))) {
+                            std::wstring fv(fl + 1, L'\0');
+                            if (SUCCEEDED(fn->GetString(0, &fv[0], fl + 1))) {
+                                fv.resize(fl);
+                                *family = fv;
+                            }
+                        }
+                        fn->Release();
+                    }
+                }
+                s->Release();
+            }
+            f->Release();
+        }
+        fam->Release();
+    }
+    sys->Release();
+}
+
+static void ResolveFont(const std::wstring& name, std::wstring* family, DWRITE_FONT_WEIGHT* weight) {
+    for (int i = 0; i < g_rfUsed; i++) {
+        if (g_rfKey[i] == name) {
+            *family = g_rfFam[i];
+            *weight = g_rfW[i];
+            return;
+        }
+    }
+    ResolveFontScan(name, family, weight);
+    g_rfKey[g_rfNext] = name;
+    g_rfFam[g_rfNext] = *family;
+    g_rfW[g_rfNext] = *weight;
+    g_rfNext = (g_rfNext + 1) % 4;
+    if (g_rfUsed < 4) g_rfUsed++;
+}
+
+static bool EnsureGraphics() {
+    if (!g_d2d) {
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory), nullptr,
+                                     reinterpret_cast<void**>(&g_d2d))))
+            return false;
+    }
+    if (!g_dw) {
+        if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+                                       reinterpret_cast<IUnknown**>(&g_dw))))
+            return false;
+        LoadCustomFonts();
+    }
+    if (!g_rt) {
+        D2D1_RENDER_TARGET_PROPERTIES props = {};
+        props.type = D2D1_RENDER_TARGET_TYPE_SOFTWARE;  // one small repaint a minute: CPU is plenty, no GPU device kept alive
+        props.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        props.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+        props.dpiX = 96.0f;
+        props.dpiY = 96.0f;
+        props.usage = D2D1_RENDER_TARGET_USAGE_GDI_COMPATIBLE;
+        props.minLevel = D2D1_FEATURE_LEVEL_DEFAULT;
+        if (FAILED(g_d2d->CreateDCRenderTarget(&props, &g_rt))) return false;
+    }
+    return true;
+}
+
+static bool CreateFrame(Frame& f, int w, int h) {
+    BITMAPINFO bi = {};
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = w;
+    bi.bmiHeader.biHeight = -h;  // top-down
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+    f.bmp = CreateDIBSection(nullptr, &bi, DIB_RGB_COLORS, &f.bits, nullptr, 0);
+    if (!f.bmp) return false;
+    f.dc = CreateCompatibleDC(nullptr);
+    if (!f.dc) {
+        DeleteObject(f.bmp);
+        f.bmp = nullptr;
+        return false;
+    }
+    f.old = SelectObject(f.dc, f.bmp);
+    return true;
+}
+
+static void DestroyFrame(Frame& f) {
+    if (f.dc) {
+        SelectObject(f.dc, f.old);
+        DeleteDC(f.dc);
+    }
+    if (f.bmp) DeleteObject(f.bmp);
+    f = Frame();
+}
+
+static ID2D1SolidColorBrush* MakeBrush(float r, float g, float b, float a) {
+    D2D1_COLOR_F c = {r, g, b, a};
+    ID2D1SolidColorBrush* br = nullptr;
+    g_rt->CreateSolidColorBrush(&c, nullptr, &br);
+    return br;
+}
+
+// ---- Colors: per-wallpaper color if set, otherwise the style's default from the settings ----
+
+struct Rgb { float r, g, b; };
+
+static unsigned EffectiveColor(int slot) {
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    slot = Clampi(slot, 0, 1);
+    unsigned c = g_layout.color[st][slot];
+    return (c & kColorSet) ? (c & 0xFFFFFFu) : g_settings.defColor[st][slot];
+}
+
+static Rgb StyleRgb(int slot) {
+    unsigned c = EffectiveColor(slot);
+    Rgb o = {((c >> 16) & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, (c & 255) / 255.0f};
+    return o;
+}
+
+static ID2D1SolidColorBrush* StyleBrush(int slot, float alpha) {
+    Rgb c = StyleRgb(slot);
+    return MakeBrush(c.r, c.g, c.b, alpha);
+}
+
+// Builds a centered, single-line layout and shrinks the font if it is wider than fitW.
+static IDWriteTextLayout* MakeLayout(const std::wstring& text, float size, DWRITE_FONT_WEIGHT weight,
+                                     float maxW, float maxH, float fitW) {
+    for (int pass = 0; pass < 2; ++pass) {
+        IDWriteTextFormat* fmt = nullptr;
+        if (FAILED(g_dw->CreateTextFormat(g_settings.fontName.c_str(), FindCollection(g_settings.fontName), weight, DWRITE_FONT_STYLE_NORMAL,
+                                          DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &fmt)) ||
+            !fmt)
+            return nullptr;
+        fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+        fmt->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+
+        IDWriteTextLayout* lay = nullptr;
+        HRESULT hr = g_dw->CreateTextLayout(text.c_str(), (UINT32)text.size(), fmt, maxW, maxH, &lay);
+        SafeRelease(fmt);
+        if (FAILED(hr) || !lay) return nullptr;
+
+        DWRITE_TEXT_METRICS tm = {};
+        lay->GetMetrics(&tm);
+        float tw = tm.widthIncludingTrailingWhitespace;
+        if (pass == 0 && tw > fitW && tw > 0.0f) {
+            size = std::max(6.0f, size * fitW / tw);
+            lay->Release();
+            continue;
+        }
+        return lay;
+    }
+    return nullptr;
+}
+
+static void DrawWithShadow(IDWriteTextLayout* l, float x, float y, float off, ID2D1SolidColorBrush* fg,
+                           ID2D1SolidColorBrush* sh) {
+    if (sh) {
+        D2D1_POINT_2F p = {x + off, y + off};
+        g_rt->DrawTextLayout(p, l, sh, D2D1_DRAW_TEXT_OPTIONS_NONE);
+    }
+    D2D1_POINT_2F p = {x, y};
+    g_rt->DrawTextLayout(p, l, fg, D2D1_DRAW_TEXT_OPTIONS_NONE);
+}
+
+// ---- Style 1: Classic - light time, date underneath ------------------------
+
+static void DrawClockClassic(float ox, float oy, float w, float h) {
+    bool showD = g_settings.showDate && !g_lastDate.empty();
+    float availW = w * 0.92f;
+    float tSize = showD ? h * 0.56f : h * 0.74f;
+    float dSize = h * 0.19f;
+
+    IDWriteTextLayout* tl = MakeLayout(g_lastTime, tSize, DWRITE_FONT_WEIGHT_LIGHT, w, h * 2, availW);
+    IDWriteTextLayout* dl = showD ? MakeLayout(g_lastDate, dSize, DWRITE_FONT_WEIGHT_NORMAL, w, h * 2, availW) : nullptr;
+    if (!tl) {
+        SafeRelease(dl);
+        return;
+    }
+
+    DWRITE_TEXT_METRICS tm = {}, dm = {};
+    tl->GetMetrics(&tm);
+    if (dl) dl->GetMetrics(&dm);
+    float gap = dl ? h * 0.02f : 0.0f;
+    float total = tm.height + (dl ? gap + dm.height : 0.0f);
+    float y = oy + (h - total) / 2.0f;
+
+    ID2D1SolidColorBrush* fg = StyleBrush(0, 1.0f);
+    ID2D1SolidColorBrush* sh = g_settings.shadow ? MakeBrush(0, 0, 0, 0.40f) : nullptr;
+    float off = std::max(1.5f, h * 0.012f);
+
+    if (fg) {
+        DrawWithShadow(tl, ox, y, off, fg, sh);
+        if (dl) DrawWithShadow(dl, ox, y + tm.height + gap, off, fg, sh);
+    }
+
+    SafeRelease(fg);
+    SafeRelease(sh);
+    SafeRelease(tl);
+    SafeRelease(dl);
+}
+
+
+// ---- Style 3: Poster - giant fading day number, month, time, vertical weekday ----
+// Every size is a fraction of the widget box, so it scales with the editor. Each font is measured
+// (cap height) and the big number is squeezed horizontally to fit, so most fonts work.
+
+static void SetTrackingPx(IDWriteTextLayout* lay, UINT32 len, float px) {
+    IDWriteTextLayout1* l1 = nullptr;
+    if (SUCCEEDED(lay->QueryInterface(__uuidof(IDWriteTextLayout1), reinterpret_cast<void**>(&l1))) && l1) {
+        DWRITE_TEXT_RANGE r = {0, len};
+        l1->SetCharacterSpacing(0.0f, px, 0.0f, r);
+        l1->Release();
+    }
+}
+
+// Left-aligned layout with its own font, weight, stretch and letter spacing (trackEm, in em).
+// Shrinks the font if the text is wider than fitW.
+static IDWriteTextLayout* MakeLayoutEx(const std::wstring& text, const std::wstring& font, float size,
+                                       DWRITE_FONT_WEIGHT weight, DWRITE_FONT_STRETCH stretch, float trackEm,
+                                       float maxW, float maxH, float fitW) {
+    for (int pass = 0; pass < 2; ++pass) {
+        IDWriteTextFormat* fmt = nullptr;
+        if (FAILED(g_dw->CreateTextFormat(font.c_str(), FindCollection(font), weight, DWRITE_FONT_STYLE_NORMAL,
+                                          stretch, size, L"en-us", &fmt)) ||
+            !fmt)
+            return nullptr;
+        fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+        fmt->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+
+        IDWriteTextLayout* lay = nullptr;
+        HRESULT hr = g_dw->CreateTextLayout(text.c_str(), (UINT32)text.size(), fmt, maxW, maxH, &lay);
+        SafeRelease(fmt);
+        if (FAILED(hr) || !lay) return nullptr;
+
+        SetTrackingPx(lay, (UINT32)text.size(), trackEm * size);
+        DWRITE_TEXT_METRICS tm = {};
+        lay->GetMetrics(&tm);
+        if (pass == 0 && tm.width > fitW && tm.width > 0.0f) {
+            size = std::max(6.0f, size * fitW / tm.width);
+            lay->Release();
+            continue;
+        }
+        return lay;
+    }
+    return nullptr;
+}
+
+static void DrawClockPoster(float ox, float oy, float w, float h) {
+    std::wstring numFont;
+    DWRITE_FONT_WEIGHT numWeight = DWRITE_FONT_WEIGHT_BOLD;
+    ResolveFont(g_settings.posterNumberFont, &numFont, &numWeight);
+    const std::wstring& txtFont = g_settings.posterTextFont;
+    const bool showD = g_settings.showDate && !g_day.empty();
+
+    auto baselineOf = [](IDWriteTextLayout* l) {
+        DWRITE_LINE_METRICS lm = {};
+        UINT32 c = 0;
+        l->GetLineMetrics(&lm, 1, &c);
+        return lm.baseline;
+    };
+
+    ID2D1SolidColorBrush* accent = StyleBrush(1, 1.0f);
+    const float ratioT = CapHeightRatio(txtFont, DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STRETCH_NORMAL);
+    const float textX = ox + w * 0.155f;  // left edge of month / time / line
+    const float textW = ox + w - textX;
+
+    // 1) Big day number, fading out towards the bottom
+    if (showD) {
+        const float numH = h * 0.86f;  // visible height of the digits
+        const float numTop = oy + h * 0.02f;
+        // Measure the real digit outlines; fall back to the font's cap height if that fails.
+        float inkTop = 0.0f, inkBot = 0.0f;
+        if (!InkExtent(numFont, numWeight, DWRITE_FONT_STRETCH_NORMAL, g_day, &inkTop, &inkBot) ||
+            inkTop + inkBot < 0.1f) {
+            inkTop = CapHeightRatio(numFont, numWeight, DWRITE_FONT_STRETCH_NORMAL);
+            inkBot = 0.0f;
+        }
+        const float numSize = numH / (inkTop + inkBot);
+        IDWriteTextLayout* nl = MakeLayoutEx(g_day, numFont, numSize, numWeight,
+                                             DWRITE_FONT_STRETCH_NORMAL, 0.0f, w * 4, h * 4, 1.0e6f);
+        if (nl) {
+            DWRITE_TEXT_METRICS tm = {};
+            nl->GetMetrics(&tm);
+            // squeeze horizontally so the number takes ~66% of the width (never stretch)
+            float sx = tm.width > 0.0f ? std::min(1.0f, std::max(0.55f, w * 0.66f / tm.width)) : 1.0f;
+            float y = numTop + inkTop * numSize - baselineOf(nl);
+
+            D2D1_GRADIENT_STOP gs[2];
+            gs[0].position = 0.0f;
+            gs[0].color = D2D1_COLOR_F{StyleRgb(0).r, StyleRgb(0).g, StyleRgb(0).b, 0.85f};  // top: fairly solid
+            gs[1].position = 1.0f;
+            gs[1].color = D2D1_COLOR_F{StyleRgb(0).r, StyleRgb(0).g, StyleRgb(0).b, 0.04f};  // bottom: almost gone
+            ID2D1GradientStopCollection* coll = nullptr;
+            ID2D1LinearGradientBrush* gb = nullptr;
+            if (SUCCEEDED(g_rt->CreateGradientStopCollection(gs, 2, &coll)) && coll) {
+                D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES lp;
+                lp.startPoint = D2D1::Point2F(0.0f, numTop);
+                lp.endPoint = D2D1::Point2F(0.0f, numTop + numH);
+                g_rt->CreateLinearGradientBrush(lp, coll, &gb);
+            }
+            if (gb) {
+                g_rt->SetTransform(D2D1::Matrix3x2F::Scale(D2D1::SizeF(sx, 1.0f), D2D1::Point2F(ox, 0.0f)));
+                D2D1_POINT_2F p = {ox, y};
+                g_rt->DrawTextLayout(p, nl, gb, D2D1_DRAW_TEXT_OPTIONS_NONE);
+                g_rt->SetTransform(D2D1::Matrix3x2F::Identity());
+            }
+            SafeRelease(gb);
+            SafeRelease(coll);
+            SafeRelease(nl);
+        }
+    }
+
+    if (accent) {
+        // 2) Month (big, letter-spaced)
+        if (showD) {
+            IDWriteTextLayout* ml = MakeLayoutEx(g_month, txtFont, h * 0.13f / ratioT, DWRITE_FONT_WEIGHT_BOLD,
+                                                 DWRITE_FONT_STRETCH_NORMAL, 0.06f, w * 2, h * 2, textW);
+            if (ml) {
+                D2D1_POINT_2F p = {textX, oy + h * 0.52f - baselineOf(ml)};
+                g_rt->DrawTextLayout(p, ml, accent, D2D1_DRAW_TEXT_OPTIONS_NONE);
+                ml->Release();
+            }
+        }
+
+        // 3) Time (small)
+        IDWriteTextLayout* tl = MakeLayoutEx(g_lastTime, txtFont, h * 0.04f / ratioT, DWRITE_FONT_WEIGHT_BOLD,
+                                             DWRITE_FONT_STRETCH_NORMAL, 0.08f, w * 2, h * 2, textW);
+        if (tl) {
+            D2D1_POINT_2F p = {textX, oy + h * 0.62f - baselineOf(tl)};
+            g_rt->DrawTextLayout(p, tl, accent, D2D1_DRAW_TEXT_OPTIONS_NONE);
+            tl->Release();
+        }
+
+        if (showD) {
+            // 4) Thin line under the time
+            float th = std::max(1.5f, h * 0.004f);
+            float ly = oy + h * 0.673f;
+            D2D1_RECT_F lr = {textX, ly - th / 2, ox + w * 0.32f, ly + th / 2};
+            g_rt->FillRectangle(&lr, accent);
+
+            // 5) Weekday: rotated, reads bottom to top, letters spread over ~40% of the height
+            IDWriteTextLayout* wl = MakeLayoutEx(g_weekday, txtFont, h * 0.03f / ratioT, DWRITE_FONT_WEIGHT_BOLD,
+                                                 DWRITE_FONT_STRETCH_NORMAL, 0.0f, w * 2, h * 2, 1.0e6f);
+            if (wl) {
+                DWRITE_TEXT_METRICS wm = {};
+                wl->GetMetrics(&wm);
+                size_t n = g_weekday.size();
+                float len = h * 0.40f;
+                if (n > 1 && wm.width < len) SetTrackingPx(wl, (UINT32)n, (len - wm.width) / (float)(n - 1));
+
+                float fs = h * 0.03f / ratioT;
+                wl->GetFontSize(0, &fs);
+                float cap = fs * ratioT;
+                float cx = ox + w * 0.069f;     // horizontal center of the vertical text
+                float bottom = oy + h * 0.995f;  // where the first letter starts
+                float ax = cx - (baselineOf(wl) - cap / 2);
+
+                D2D1::Matrix3x2F m = D2D1::Matrix3x2F::Rotation(-90.0f, D2D1::Point2F(0.0f, 0.0f)) *
+                                     D2D1::Matrix3x2F::Translation(ax, bottom);
+                g_rt->SetTransform(m);
+                D2D1_POINT_2F p = {0.0f, 0.0f};
+                g_rt->DrawTextLayout(p, wl, accent, D2D1_DRAW_TEXT_OPTIONS_NONE);
+                g_rt->SetTransform(D2D1::Matrix3x2F::Identity());
+                wl->Release();
+            }
+        }
+    }
+    SafeRelease(accent);
+}
+
+// ---- Style 2 (new): Bold - small spaced date on top, big heavy time with a soft vertical fade ----
+// No shadow (a dark shadow looks bad on colored text). The time fades from solid at the top to softer
+// at the bottom in whatever color is chosen. Lines are placed by glyph height, so the spacing stays even.
+static void DrawClockBold(float ox, float oy, float w, float h) {
+    const std::wstring& font = g_settings.boldFont;
+    const bool showD = g_settings.showDate && !g_lastDate.empty();
+    const float fitW = w * 0.94f;
+    const float tTrack = -0.02f;  // time: slightly tight letter spacing (em)
+    const float dTrack = 0.38f;   // date: wide letter spacing (em)
+    const float tRatio = CapHeightRatio(font, DWRITE_FONT_WEIGHT_BLACK, DWRITE_FONT_STRETCH_NORMAL);
+    const float dRatio = CapHeightRatio(font, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL);
+
+    const float tSize = (showD ? h * 0.50f : h * 0.64f) / tRatio;  // big time: digit height is 50% of the box
+    const float dSize = (h * 0.085f) / dRatio;                     // date: capital height is 8.5% of the box
+
+    IDWriteTextLayout* tl = MakeLayoutEx(g_lastTime, font, tSize, DWRITE_FONT_WEIGHT_BLACK,
+                                         DWRITE_FONT_STRETCH_NORMAL, tTrack, w * 2, h * 2, fitW);
+    IDWriteTextLayout* dl = showD ? MakeLayoutEx(UpperText(g_lastDate), font, dSize, DWRITE_FONT_WEIGHT_SEMI_BOLD,
+                                                 DWRITE_FONT_STRETCH_NORMAL, dTrack, w * 2, h * 2, fitW)
+                                  : nullptr;
+    if (!tl) {
+        SafeRelease(dl);
+        return;
+    }
+
+    // Real sizes after the shrink-to-fit pass, and where each baseline sits inside its layout.
+    float tFs = tSize, dFs = dSize;
+    tl->GetFontSize(0, &tFs);
+    if (dl) dl->GetFontSize(0, &dFs);
+    DWRITE_LINE_METRICS tlm = {}, dlm = {};
+    UINT32 cnt = 0;
+    tl->GetLineMetrics(&tlm, 1, &cnt);
+    if (dl) dl->GetLineMetrics(&dlm, 1, &cnt);
+
+    const float digitH = tFs * tRatio;
+    const float capH = dFs * dRatio;
+    const float gap = h * 0.075f;  // space between the date and the top of the digits
+    const float total = digitH + (dl ? capH + gap : 0.0f);
+    const float top = oy + (h - total) / 2.0f;
+    const float dBase = top + capH;
+    const float digitTop = dl ? dBase + gap : top;
+    const float tBase = digitTop + digitH;
+    const float cx = ox + w / 2.0f;
+
+    // x that centers a layout, ignoring the trailing letter space
+    auto centerX = [&](IDWriteTextLayout* l, float fs, float trackEm) {
+        DWRITE_TEXT_METRICS m = {};
+        l->GetMetrics(&m);
+        return cx - (m.width - trackEm * fs) / 2.0f;
+    };
+
+    // Time: vertical fade from solid (top) to softer (bottom)
+    Rgb c = StyleRgb(0);
+    D2D1_GRADIENT_STOP gs[2];
+    gs[0].position = 0.0f;
+    gs[0].color = D2D1_COLOR_F{c.r, c.g, c.b, 1.0f};
+    gs[1].position = 1.0f;
+    gs[1].color = D2D1_COLOR_F{c.r, c.g, c.b, 0.45f};  // bottom opacity: raise for a weaker fade
+    ID2D1GradientStopCollection* coll = nullptr;
+    ID2D1LinearGradientBrush* gb = nullptr;
+    if (SUCCEEDED(g_rt->CreateGradientStopCollection(gs, 2, &coll)) && coll) {
+        D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES lp;
+        lp.startPoint = D2D1::Point2F(0.0f, digitTop);
+        lp.endPoint = D2D1::Point2F(0.0f, tBase);
+        g_rt->CreateLinearGradientBrush(lp, coll, &gb);
+    }
+    if (gb) {
+        D2D1_POINT_2F p = {centerX(tl, tFs, tTrack), tBase - tlm.baseline};
+        g_rt->DrawTextLayout(p, tl, gb, D2D1_DRAW_TEXT_OPTIONS_NONE);
+    }
+
+    // Date: solid, slightly softer than the top of the time
+    ID2D1SolidColorBrush* fgD = StyleBrush(0, 0.90f);
+    if (dl && fgD) {
+        D2D1_POINT_2F p = {centerX(dl, dFs, dTrack), dBase - dlm.baseline};
+        g_rt->DrawTextLayout(p, dl, fgD, D2D1_DRAW_TEXT_OPTIONS_NONE);
+    }
+
+    SafeRelease(gb);
+    SafeRelease(coll);
+    SafeRelease(fgD);
+    SafeRelease(tl);
+    SafeRelease(dl);
+}
+// The big weekday is NOT a font: every letter is a list of rectangles on a grid 12 tall
+// (stroke = 2). To change a letter's look, edit its line below: {x0, y0, x1, y1}.
+
+
+// Designed on a 366 x 579 canvas (the skin's size); everything scales uniformly and is centered in the box.
+static void DrawClockTech(float ox, float oy, float w, float h) {
+    const float S = std::min(w / 366.0f, h / 579.0f);
+    const float x0 = ox + (w - 366.0f * S) / 2.0f;
+    const float y0 = oy + (h - 579.0f * S) / 2.0f;
+    const float cx = x0 + 183.0f * S;
+    const std::wstring& font = g_settings.techTextFont;
+    const bool showD = g_settings.showDate && !g_day.empty();
+
+    ID2D1SolidColorBrush* big = StyleBrush(0, 1.0f);
+    ID2D1SolidColorBrush* txt = StyleBrush(1, 1.0f);
+    ID2D1SolidColorBrush* sh = g_settings.shadow ? MakeBrush(0, 0, 0, 0.35f) : nullptr;
+    const float off = std::max(1.0f, S * 1.2f);
+    const float ratio = CapHeightRatio(font, DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STRETCH_NORMAL);
+    const float fitW = 366.0f * S * 0.96f;
+    const float track = 0.30f;  // letter spacing in em
+
+    // One centered, letter-spaced line; its capitals are centered on design-y cy.
+    auto line = [&](const std::wstring& t, float cy) {
+        if (t.empty() || !txt) return;
+        const float size = 11.0f * S / ratio;
+        IDWriteTextLayout* l = MakeLayoutEx(t, font, size, DWRITE_FONT_WEIGHT_SEMI_BOLD,
+                                            DWRITE_FONT_STRETCH_NORMAL, track, w * 2, h * 2, fitW);
+        if (!l) return;
+        DWRITE_TEXT_METRICS tm = {};
+        l->GetMetrics(&tm);
+        float fs = size;
+        l->GetFontSize(0, &fs);
+        DWRITE_LINE_METRICS lm = {};
+        UINT32 c = 0;
+        l->GetLineMetrics(&lm, 1, &c);
+        float x = cx - (tm.width - track * fs) / 2.0f;  // ignore the trailing letter space
+        float y = y0 + cy * S + fs * ratio / 2.0f - lm.baseline;
+        DrawWithShadow(l, x, y, off, txt, sh);
+        l->Release();
+    };
+
+    // thin vertical lines above and below
+    if (txt) {
+        float th = std::max(1.0f, 1.3f * S);
+        D2D1_RECT_F a = {cx - th / 2, y0 + 55.0f * S, cx + th / 2, y0 + 130.0f * S};
+        D2D1_RECT_F b = {cx - th / 2, y0 + 430.0f * S, cx + th / 2, y0 + 503.0f * S};
+        g_rt->FillRectangle(&a, txt);
+        g_rt->FillRectangle(&b, txt);
+    }
+
+    line(L"GOOD", 163.0f);
+    line(g_greet, 203.0f);
+    {
+        const std::wstring& bf = g_settings.techBigFont;
+        const float bRatio = CapHeightRatio(bf, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STRETCH_NORMAL);
+        const float capPx = 57.0f * S;  // height of the big letters
+        const float bTrack = 0.10f;     // letter spacing in em: raise it to spread the letters
+        IDWriteTextLayout* bl = MakeLayoutEx(g_weekday, bf, capPx / bRatio, DWRITE_FONT_WEIGHT_NORMAL,
+                                             DWRITE_FONT_STRETCH_NORMAL, bTrack, w * 2, h * 2, fitW);
+        if (bl && big) {
+            DWRITE_TEXT_METRICS tm = {};
+            bl->GetMetrics(&tm);
+            float fs = capPx / bRatio;
+            bl->GetFontSize(0, &fs);
+            DWRITE_LINE_METRICS lm = {};
+            UINT32 c = 0;
+            bl->GetLineMetrics(&lm, 1, &c);
+            float x = cx - (tm.width - bTrack * fs) / 2.0f;
+            float y = y0 + 250.0f * S + capPx - lm.baseline;  // baseline sits capPx below the top
+            DrawWithShadow(bl, x, y, off, big, sh);
+        }
+        SafeRelease(bl);
+    }
+    if (showD) line(g_day, 354.0f);
+    line(g_lastTime, 394.0f);
+
+    SafeRelease(big);
+    SafeRelease(txt);
+    SafeRelease(sh);
+}
+
+// ---- Style 5: Custom - data-driven layouts (see kPresets at the top) ----
+
+static std::wstring DateText(const SYSTEMTIME& st, const wchar_t* fmt) {
+    wchar_t b[96];
+    return GetDateFormatEx(kLocale, 0, &st, fmt, b, 96, nullptr) > 0 ? std::wstring(b) : std::wstring();
+}
+
+static std::wstring TokenValue(const std::wstring& t, const SYSTEMTIME& st) {
+    wchar_t b[32];
+    const bool is24 = g_settings.use24h;
+    int h12 = st.wHour % 12;
+    if (h12 == 0) h12 = 12;
+    const int hv = is24 ? st.wHour : h12;
+
+    if (t == L"h") { wsprintfW(b, L"%d", hv); return b; }
+    if (t == L"hh") { wsprintfW(b, L"%02d", hv); return b; }
+    if (t == L"min") { wsprintfW(b, L"%02d", st.wMinute); return b; }
+    if (t == L"T" || t == L"t") {
+        const wchar_t* f = (t == L"T") ? L"%02d:%02d" : L"%d:%02d";
+        wsprintfW(b, f, hv, st.wMinute);
+        std::wstring r = b;
+        if (g_settings.showSeconds) {
+            wsprintfW(b, L":%02d", st.wSecond);
+            r += b;
+        }
+        return r;
+    }
+    if (t == L"ampm") return is24 ? std::wstring() : std::wstring(st.wHour < 12 ? L"AM" : L"PM");
+    if (t == L"a.m.") return is24 ? std::wstring() : std::wstring(st.wHour < 12 ? L"A.M." : L"P.M.");
+
+    if (t == L"weekday") return DateText(st, L"dddd");
+    if (t == L"wd") return DateText(st, L"ddd");
+    if (t == L"day") return DateText(st, L"d");
+    if (t == L"dd") return DateText(st, L"dd");
+    if (t == L"month") return DateText(st, L"MMMM");
+    if (t == L"mon") return DateText(st, L"MMM");
+    if (t == L"mn") return DateText(st, L"M");
+    if (t == L"mm") return DateText(st, L"MM");
+    if (t == L"yyyy") return DateText(st, L"yyyy");
+    if (t == L"yy") return DateText(st, L"yy");
+    if (t == L"greet") {
+        if (st.wHour < 5) return L"Night";
+        if (st.wHour < 12) return L"Morning";
+        if (st.wHour < 17) return L"Afternoon";
+        if (st.wHour < 22) return L"Evening";
+        return L"Night";
+    }
+    return L"{" + t + L"}";  // unknown token: shown as typed, so typos are easy to spot
+}
+
+static std::wstring ExpandTemplate(const wchar_t* tpl, const SYSTEMTIME& st) {
+    std::wstring out;
+    for (const wchar_t* p = tpl; *p;) {
+        if (*p == L'{') {
+            const wchar_t* e = wcschr(p, L'}');
+            if (e) {
+                out += TokenValue(std::wstring(p + 1, e), st);
+                p = e + 1;
+                continue;
+            }
+        }
+        out += *p++;
+    }
+    // 24-hour mode makes {ampm} empty: drop the dangling spaces / separators it leaves behind
+    size_t a = 0, b = out.size();
+    while (a < b && (out[a] == L' ' || out[a] == L'|')) a++;
+    while (b > a && (out[b - 1] == L' ' || out[b - 1] == L'|')) b--;
+    return out.substr(a, b - a);
+}
+
+// Font of one slot: font picked for this wallpaper > font from the settings > the layout's own font.
+static std::wstring CustomFontName(const Layout& L, int slot) {
+    if (L.font[slot][0]) return L.font[slot];
+    const std::wstring& s = slot == 0 ? g_settings.customFont : g_settings.customFont2;
+    if (!s.empty()) return s;
+    return kPresets[Clampi(L.preset, 0, kCustomPresetCount - 1)].font[slot];
+}
+
+// ResolveFont scans every installed font when a name is not a family name, so remember the answer.
+static std::wstring ResolveCached(int, const std::wstring& raw) {
+    std::wstring fam;
+    DWRITE_FONT_WEIGHT wt;
+    ResolveFont(raw, &fam, &wt);
+    return fam;
+}
+
+static void DrawClockCustom(float ox, float oy, float w, float h) {
+    const CPreset& P = kPresets[Clampi(g_layout.preset, 0, kCustomPresetCount - 1)];
+    const int wsel = Clampi(g_layout.cweight, 0, 3);
+    SYSTEMTIME now;
+    GetLocalTime(&now);
+
+    std::wstring fam[2];
+    for (int i = 0; i < 2; i++) fam[i] = ResolveCached(i, CustomFontName(g_layout, i));
+
+    ID2D1SolidColorBrush* sh = (g_settings.shadow && P.shadow) ? MakeBrush(0, 0, 0, 0.38f) : nullptr;
+    const float off = std::max(1.5f, h * 0.008f);
+
+    for (int i = 0; i < P.n; i++) {
+        const CLine& ln = P.lines[i];
+        if (ln.isDate && !g_settings.showDate) continue;
+        std::wstring txt = ExpandTemplate(ln.text, now);
+        if (ln.upper) txt = UpperText(txt);
+        if (txt.empty()) continue;
+
+        const std::wstring& font = fam[ln.font];
+        int wi = ln.weight;
+        if (ln.font == 0 && wsel > 0) wi = kWeightChoices[wsel];
+        const DWRITE_FONT_WEIGHT wt = (DWRITE_FONT_WEIGHT)wi;
+        const float ratio = CapHeightRatio(font, wt, DWRITE_FONT_STRETCH_NORMAL);
+        const float size = ln.cap * h / ratio;
+
+        IDWriteTextLayout* l = MakeLayoutEx(txt, font, size, wt, DWRITE_FONT_STRETCH_NORMAL, ln.track, w * 2,
+                                            h * 2, ln.maxW * w);
+        if (!l) continue;
+
+        float fs = size;
+        l->GetFontSize(0, &fs);
+        DWRITE_TEXT_METRICS tm = {};
+        l->GetMetrics(&tm);
+        DWRITE_LINE_METRICS lm = {};
+        UINT32 cnt = 0;
+        l->GetLineMetrics(&lm, 1, &cnt);
+
+        const float vis = tm.width - ln.track * fs;  // visible width (no trailing letter space)
+        const float ax = ox + ln.x * w;
+        const float x = ln.align == 0 ? ax : (ln.align == 1 ? ax - vis / 2.0f : ax - vis);
+        const float capPx = fs * ratio;
+        const float capTop = oy + ln.y * h - capPx / 2.0f;
+        const float y = capTop + capPx - lm.baseline;  // baseline sits at the bottom of the capitals
+
+        const Rgb c = StyleRgb(ln.color);
+        ID2D1SolidColorBrush* fg = nullptr;
+        ID2D1GradientStopCollection* coll = nullptr;
+        ID2D1LinearGradientBrush* gb = nullptr;
+        if (ln.fade < 0.99f) {
+            D2D1_GRADIENT_STOP gs[2];
+            gs[0].position = 0.0f;
+            gs[0].color = D2D1_COLOR_F{c.r, c.g, c.b, ln.alpha};
+            gs[1].position = 1.0f;
+            gs[1].color = D2D1_COLOR_F{c.r, c.g, c.b, ln.alpha * ln.fade};
+            if (SUCCEEDED(g_rt->CreateGradientStopCollection(gs, 2, &coll)) && coll) {
+                D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES lp;
+                lp.startPoint = D2D1::Point2F(0.0f, capTop);
+                lp.endPoint = D2D1::Point2F(0.0f, capTop + capPx);
+                g_rt->CreateLinearGradientBrush(lp, coll, &gb);
+            }
+        }
+        if (!gb) fg = MakeBrush(c.r, c.g, c.b, ln.alpha);
+
+        if (gb || fg) {
+            if (sh) {
+                D2D1_POINT_2F sp = {x + off, y + off};
+                g_rt->DrawTextLayout(sp, l, sh, D2D1_DRAW_TEXT_OPTIONS_NONE);
+            }
+            D2D1_POINT_2F p = {x, y};
+            if (gb) g_rt->DrawTextLayout(p, l, gb, D2D1_DRAW_TEXT_OPTIONS_NONE);
+            else g_rt->DrawTextLayout(p, l, fg, D2D1_DRAW_TEXT_OPTIONS_NONE);
+        }
+
+        SafeRelease(gb);
+        SafeRelease(coll);
+        SafeRelease(fg);
+        l->Release();
+    }
+    SafeRelease(sh);
+}
+
+// Font face of a family (custom folder or installed). The caller releases it. nullptr if not found.
+static IDWriteFontFace* GetFace(const std::wstring& name, DWRITE_FONT_WEIGHT weight) {
+    IDWriteFontFace* face = nullptr;
+    IDWriteFontCollection* sys = nullptr;
+    IDWriteFontCollection* coll = FindCollection(name);
+    if (!coll) {
+        if (FAILED(g_dw->GetSystemFontCollection(&sys)) || !sys) return nullptr;
+        coll = sys;
+    }
+    UINT32 idx = 0;
+    BOOL exists = FALSE;
+    if (SUCCEEDED(coll->FindFamilyName(name.c_str(), &idx, &exists)) && exists) {
+        IDWriteFontFamily* fam = nullptr;
+        if (SUCCEEDED(coll->GetFontFamily(idx, &fam)) && fam) {
+            IDWriteFont* font = nullptr;
+            if (SUCCEEDED(fam->GetFirstMatchingFont(weight, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                                    &font)) &&
+                font) {
+                font->CreateFontFace(&face);
+                font->Release();
+            }
+            fam->Release();
+        }
+    }
+    SafeRelease(sys);
+    return face;
+}
+
+// Outline of one digit at the given size: baseline at y = 0, left edge of the advance at x = 0.
+static ID2D1PathGeometry* DigitShape(IDWriteFontFace* face, wchar_t ch, float size, float* advance) {
+    UINT32 cp = ch;
+    UINT16 gi = 0;
+    if (FAILED(face->GetGlyphIndices(&cp, 1, &gi))) return nullptr;
+    DWRITE_FONT_METRICS fm = {};
+    face->GetMetrics(&fm);
+    DWRITE_GLYPH_METRICS gm = {};
+    if (SUCCEEDED(face->GetDesignGlyphMetrics(&gi, 1, &gm, FALSE)) && fm.designUnitsPerEm > 0)
+        *advance = gm.advanceWidth * size / fm.designUnitsPerEm;
+    ID2D1PathGeometry* geo = nullptr;
+    ID2D1GeometrySink* sink = nullptr;
+    if (FAILED(g_d2d->CreatePathGeometry(&geo)) || !geo) return nullptr;
+    if (FAILED(geo->Open(&sink)) || !sink) {
+        geo->Release();
+        return nullptr;
+    }
+    sink->SetFillMode(D2D1_FILL_MODE_WINDING);
+    HRESULT hr = face->GetGlyphRunOutline(size, &gi, nullptr, nullptr, 1, FALSE, FALSE, sink);
+    sink->Close();
+    sink->Release();
+    if (FAILED(hr)) {
+        geo->Release();
+        return nullptr;
+    }
+    return geo;
+}
+
+// a minus b, as a new geometry (nullptr on failure)
+static ID2D1PathGeometry* SubtractShape(ID2D1Geometry* a, ID2D1Geometry* b) {
+    ID2D1PathGeometry* out = nullptr;
+    ID2D1GeometrySink* sink = nullptr;
+    if (FAILED(g_d2d->CreatePathGeometry(&out)) || !out) return nullptr;
+    if (FAILED(out->Open(&sink)) || !sink) {
+        out->Release();
+        return nullptr;
+    }
+    HRESULT hr = a->CombineWithGeometry(b, D2D1_COMBINE_MODE_EXCLUDE, nullptr, sink);
+    sink->Close();
+    sink->Release();
+    if (FAILED(hr)) {
+        out->Release();
+        return nullptr;
+    }
+    return out;
+}
+
+// ---- Style 6: Stack - hours over minutes, huge tight digits in a two-color checkerboard ----
+// Row 1 = hours (color1, color2), row 2 = minutes (color2, color1). Size is driven by the box height;
+// if the box is too narrow the digits are squeezed horizontally to fit.
+static void DrawClockStack(float ox, float oy, float w, float h) {
+    std::wstring fam;
+    DWRITE_FONT_WEIGHT wt = DWRITE_FONT_WEIGHT_BOLD;
+    ResolveFont(g_settings.stackFont, &fam, &wt);
+
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    int hv = st.wHour;
+    if (!g_settings.use24h) {
+        hv %= 12;
+        if (hv == 0) hv = 12;
+    }
+    wchar_t rows[2][4];
+    wsprintfW(rows[0], L"%02d", hv);
+    wsprintfW(rows[1], L"%02d", st.wMinute);
+
+    // Real digit height from the font outlines (measured on all digits so the size never jitters)
+    float topInk = 0.0f, botInk = 0.0f;
+    bool ok = false;
+    const wchar_t* sets[2] = {L"01234", L"56789"};
+    for (int i = 0; i < 2; i++) {
+        float t = 0.0f, b = 0.0f;
+        if (InkExtent(fam, wt, DWRITE_FONT_STRETCH_NORMAL, sets[i], &t, &b)) {
+            topInk = std::max(topInk, t);
+            botInk = std::max(botInk, b);
+            ok = true;
+        }
+    }
+    if (!ok || topInk + botInk < 0.1f) {
+        topInk = CapHeightRatio(fam, wt, DWRITE_FONT_STRETCH_NORMAL);
+        botInk = 0.0f;
+    }
+
+    const float rowH = h * 0.50f;    // height of the digits in one row
+    const float rowGap = -h * 0.06f; // negative = rows overlap, the bottom row covers the top row
+    const float size = rowH / (topInk + botInk);
+    const float digitGap = -size * 0.02f;  // digits nearly touching (the cut below keeps a clean gap anyway)
+    const float total = rowH * 2.0f + rowGap;
+    const float top = oy + (h - total) / 2.0f;
+    const float cx = ox + w / 2.0f;
+    const float cutGap = std::max(1.5f, h * 0.012f);  // width of the thin gap carved around the front digits
+
+    IDWriteFontFace* face = GetFace(fam, wt);
+    if (!face) return;
+
+    // digit order: 0,1 = top row (hours), 2,3 = bottom row (minutes); later digits sit in front of earlier ones
+    ID2D1PathGeometry* raw[4] = {};
+    float adv[4] = {};
+    bool good = true;
+    for (int i = 0; i < 4 && good; i++) {
+        raw[i] = DigitShape(face, rows[i / 2][i % 2], size, &adv[i]);
+        if (!raw[i]) good = false;
+    }
+    face->Release();
+
+    ID2D1Geometry* shape[4] = {};  // digits in their final position
+    ID2D1Geometry* wide[4] = {};   // the same digits grown by cutGap on every side
+    ID2D1Geometry* cut[4] = {};    // what is drawn: each digit minus everything in front of it (plus the gap)
+
+    if (good) {
+        const float rowW[2] = {adv[0] + adv[1] + digitGap, adv[2] + adv[3] + digitGap};
+        const float rowMax = std::max(rowW[0], rowW[1]);
+        const float fitW = w * 0.94f;
+        const float sx = (rowMax > fitW && rowMax > 0.0f) ? fitW / rowMax : 1.0f;
+        const D2D1::Matrix3x2F squeeze =
+            D2D1::Matrix3x2F::Scale(D2D1::SizeF(sx, 1.0f), D2D1::Point2F(cx, 0.0f));
+
+        for (int i = 0; i < 4; i++) {
+            const int r = i / 2, c = i % 2;
+            const float x = cx - rowW[r] / 2.0f + (c ? adv[r * 2] + digitGap : 0.0f);
+            const float y = top + r * (rowH + rowGap) + topInk * size;  // baseline of this row
+            D2D1::Matrix3x2F m = D2D1::Matrix3x2F::Translation(x, y) * squeeze;
+            ID2D1TransformedGeometry* tg = nullptr;
+            g_d2d->CreateTransformedGeometry(raw[i], &m, &tg);
+            shape[i] = tg;
+            cut[i] = tg;
+            if (tg) tg->AddRef();
+        }
+
+        // each digit, from the second on, carves its outline + a thin gap out of every digit behind it
+        auto sub = [](ID2D1Geometry*& g, ID2D1Geometry* by) {
+            if (!g || !by) return;
+            ID2D1PathGeometry* n = SubtractShape(g, by);
+            g->Release();
+            g = n;
+        };
+        for (int i = 1; i < 4; i++) {
+            if (!shape[i]) continue;
+            ID2D1PathGeometry* wg = nullptr;
+            ID2D1GeometrySink* sk = nullptr;
+            if (SUCCEEDED(g_d2d->CreatePathGeometry(&wg)) && wg && SUCCEEDED(wg->Open(&sk)) && sk) {
+                shape[i]->Widen(cutGap * 2.0f, nullptr, nullptr, sk);
+                sk->Close();
+                wide[i] = wg;
+            } else {
+                SafeRelease(wg);
+            }
+            SafeRelease(sk);
+            for (int j = 0; j < i; j++) {
+                sub(cut[j], shape[i]);
+                sub(cut[j], wide[i]);
+            }
+        }
+
+        for (int i = 0; i < 4; i++) {
+            if (!cut[i]) continue;
+            ID2D1SolidColorBrush* br = StyleBrush((((i / 2) + (i % 2)) % 2 == 0) ? 0 : 1, 1.0f);
+            if (br) {
+                g_rt->FillGeometry(cut[i], br);
+                br->Release();
+            }
+        }
+    }
+
+    for (int i = 0; i < 4; i++) {
+        SafeRelease(raw[i]);
+        SafeRelease(shape[i]);
+        SafeRelease(wide[i]);
+        SafeRelease(cut[i]);
+    }
+}
+
+// ---- Style 7: Script - faded condensed time, big script weekday on top, spaced date line ----
+static void DrawClockScript(float ox, float oy, float w, float h) {
+    const bool showD = g_settings.showDate && !g_day.empty();
+    const std::wstring timeFont = ResolveCached(0, g_settings.scriptTimeFont);
+    const std::wstring dateFont = ResolveCached(0, g_settings.scriptDateFont);
+    const std::wstring dayFont = ResolveCached(0, g_settings.scriptDayFont);
+    const float cx = ox + w / 2.0f;
+    const float op = Clampi(g_settings.scriptOpacity, 0, 100) / 100.0f;
+
+    // 1) Time: big, thin, condensed, semi-transparent
+    {
+        const DWRITE_FONT_WEIGHT wt = DWRITE_FONT_WEIGHT_LIGHT;
+        const DWRITE_FONT_STRETCH sr = DWRITE_FONT_STRETCH_CONDENSED;
+        const float ratio = CapHeightRatio(timeFont, wt, sr);
+        const float size = h * 0.40f / ratio;  // digit height = 40% of the box height
+        IDWriteTextLayout* l = MakeLayoutEx(g_lastTime, timeFont, size, wt, sr, 0.0f, w * 2, h * 2, w * 0.70f);
+        ID2D1SolidColorBrush* br = StyleBrush(1, op);
+        if (l && br) {
+            float fs = size;
+            l->GetFontSize(0, &fs);
+            DWRITE_TEXT_METRICS tm = {};
+            l->GetMetrics(&tm);
+            DWRITE_LINE_METRICS lm = {};
+            UINT32 cnt = 0;
+            l->GetLineMetrics(&lm, 1, &cnt);
+            const float capPx = fs * ratio;
+            D2D1_POINT_2F p = {cx - tm.width / 2.0f, oy + h * 0.30f + capPx / 2.0f - lm.baseline};
+            g_rt->DrawTextLayout(p, l, br, D2D1_DRAW_TEXT_OPTIONS_NONE);
+        }
+        SafeRelease(br);
+        SafeRelease(l);
+    }
+
+    if (!showD) return;
+
+    // 2) Date line: small, letter-spaced capitals
+    {
+        const DWRITE_FONT_WEIGHT wt = DWRITE_FONT_WEIGHT_SEMI_BOLD;
+        const DWRITE_FONT_STRETCH sr = DWRITE_FONT_STRETCH_CONDENSED;
+        const float track = 0.10f;
+        const float ratio = CapHeightRatio(dateFont, wt, sr);
+        const float size = h * 0.058f / ratio;
+        IDWriteTextLayout* l = MakeLayoutEx(g_day, dateFont, size, wt, sr, track, w * 2, h * 2, w * 0.60f);
+        ID2D1SolidColorBrush* br = StyleBrush(1, std::min(1.0f, op + 0.10f));
+        if (l && br) {
+            float fs = size;
+            l->GetFontSize(0, &fs);
+            DWRITE_TEXT_METRICS tm = {};
+            l->GetMetrics(&tm);
+            DWRITE_LINE_METRICS lm = {};
+            UINT32 cnt = 0;
+            l->GetLineMetrics(&lm, 1, &cnt);
+            const float capPx = fs * ratio;
+            D2D1_POINT_2F p = {cx - (tm.width - track * fs) / 2.0f, oy + h * 0.77f + capPx / 2.0f - lm.baseline};
+            g_rt->DrawTextLayout(p, l, br, D2D1_DRAW_TEXT_OPTIONS_NONE);
+        }
+        SafeRelease(br);
+        SafeRelease(l);
+    }
+
+    // 3) Weekday: big script, drawn last so it sits on top of the time and the date
+    {
+        const DWRITE_FONT_WEIGHT wt = DWRITE_FONT_WEIGHT_NORMAL;
+        const float ratio = CapHeightRatio(dayFont, wt, DWRITE_FONT_STRETCH_NORMAL);
+        const float size = h * 0.17f / ratio;
+        IDWriteTextLayout* l = MakeLayoutEx(g_weekday, dayFont, size, wt, DWRITE_FONT_STRETCH_NORMAL, 0.0f,
+                                            w * 2, h * 2, w * 0.62f);
+        ID2D1SolidColorBrush* fg = StyleBrush(0, 1.0f);
+        ID2D1SolidColorBrush* sh = g_settings.shadow ? MakeBrush(0, 0, 0, 0.35f) : nullptr;
+        if (l && fg) {
+            DWRITE_TEXT_METRICS tm = {};
+            l->GetMetrics(&tm);
+            DWRITE_LINE_METRICS lm = {};
+            UINT32 cnt = 0;
+            l->GetLineMetrics(&lm, 1, &cnt);
+            const float x = cx - tm.width / 2.0f;
+            const float y = oy + h * 0.66f - lm.baseline;  // baseline sits at 66% of the box height
+            DrawWithShadow(l, x, y, std::max(1.5f, h * 0.008f), fg, sh);
+        }
+        SafeRelease(sh);
+        SafeRelease(fg);
+        SafeRelease(l);
+    }
+}
+
+// Picks the drawing function for the current style.
+// Add new styles here (and bump kStyleCount / kStyleNames / kStyleDef* at the top).
+static void DrawClockText(float ox, float oy, float w, float h) {
+    switch (g_layout.style) {
+        case STYLE_BOLD:
+            DrawClockBold(ox, oy, w, h);
+            break;
+        case STYLE_POSTER:
+            DrawClockPoster(ox, oy, w, h);
+            break;
+        case STYLE_TECH:
+            DrawClockTech(ox, oy, w, h);
+            break;
+        case STYLE_CUSTOM:
+            DrawClockCustom(ox, oy, w, h);
+            break;
+        case STYLE_STACK:
+            DrawClockStack(ox, oy, w, h);
+            break;
+        case STYLE_SCRIPT:
+            DrawClockScript(ox, oy, w, h);
+            break;
+        case STYLE_CLASSIC:
+        default:
+            DrawClockClassic(ox, oy, w, h);
+            break;
+    }
+}
+
+static void DrawEditorChrome(int bw, int bh, int ox, int oy, int w, int h, const EdGeom& ed) {
+    ID2D1SolidColorBrush* fill = MakeBrush(0, 0, 0, 0.38f);
+    ID2D1SolidColorBrush* accent = MakeBrush(0.30f, 0.76f, 1.0f, 1.0f);
+    ID2D1SolidColorBrush* white = MakeBrush(1, 1, 1, 1);
+    ID2D1SolidColorBrush* pill = MakeBrush(0, 0, 0, 0.72f);
+
+    D2D1_ROUNDED_RECT box = {{(float)ox, (float)oy, (float)(ox + w), (float)(oy + h)}, 10.0f, 10.0f};
+    if (fill) g_rt->FillRoundedRectangle(&box, fill);
+    if (accent) g_rt->DrawRoundedRectangle(&box, accent, 2.0f, nullptr);
+
+    // corner handles
+    float cx[4] = {(float)ox, (float)(ox + w), (float)ox, (float)(ox + w)};
+    float cy[4] = {(float)oy, (float)oy, (float)(oy + h), (float)(oy + h)};
+    for (int i = 0; i < 4; i++) {
+        D2D1_RECT_F hr = {cx[i] - 6, cy[i] - 6, cx[i] + 6, cy[i] + 6};
+        if (white) g_rt->FillRectangle(&hr, white);
+        if (accent) g_rt->DrawRectangle(&hr, accent, 1.5f, nullptr);
+    }
+
+    // hint pill
+    float py = ed.hintAbove ? 2.0f : (float)(bh - kHintH);
+    D2D1_RECT_F pr = {4.0f, py, (float)(bw - 4), py + (float)(kHintH - 2)};
+    D2D1_ROUNDED_RECT prr = {pr, 8.0f, 8.0f};
+    if (pill) g_rt->FillRoundedRectangle(&prr, pill);
+
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    wchar_t colors[128];
+    if (kStyleColorCount[st] >= 2)
+        wsprintfW(colors, L"C: %s hex  \u00B7  V: %s hex  \u00B7  Shift+C/V: picker  \u00B7  X: reset",
+                  kStyleColorNames[st][0], kStyleColorNames[st][1]);
+    else
+        wsprintfW(colors, L"C: %s hex  \u00B7  Shift+C: picker  \u00B7  X: reset", kStyleColorNames[st][0]);
+    if (g_hexSlot >= 0) {
+        wchar_t shown[8];
+        for (int i = 0; i < 6; i++) shown[i] = i < (int)g_hexBuf.size() ? g_hexBuf[i] : L'_';
+        shown[6] = 0;
+        wsprintfW(colors, L"Type hex for %s:  #%s  \u00B7  Enter: apply  \u00B7  Esc: cancel",
+                  kStyleColorNames[st][g_hexSlot], shown);
+    }
+
+    wchar_t extra[256];
+    if (st == STYLE_CUSTOM) {
+        int pi = Clampi(g_layout.preset, 0, kCustomPresetCount - 1);
+        wsprintfW(extra,
+                  L"P: layout %d/%d %s  \u00B7  W: weight  \u00B7  Z: reset fonts\n"
+                  L"F / Shift+F: pick main / small font  \u00B7  G / Shift+G: folder fonts\n",
+                  pi + 1, kCustomPresetCount, kPresets[pi].name);
+    } else {
+        wsprintfW(extra, L"Style %d = %s: your own fonts and layouts\n", (int)STYLE_CUSTOM + 1,
+                  kStyleNames[STYLE_CUSTOM]);
+    }
+
+    wchar_t hint[1024];
+    wsprintfW(hint,
+              L"Drag to move  \u00B7  drag corners or scroll to resize\n"
+              L"S or 1-%d: change style (%s)  \u00B7  R: reset  \u00B7  %d\u00D7%d\n"
+              L"%s\n"
+              L"%s"
+              L"D: set as default clock  \u00B7  %s: load default\n"
+              L"Enter / right-click: save  \u00B7  Esc: cancel",
+              kStyleCount, kStyleNames[st], w, h, colors, extra, g_settings.defHotkey.c_str());
+
+    IDWriteTextFormat* fmt = nullptr;
+    if (SUCCEEDED(g_dw->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
+                                         DWRITE_FONT_STRETCH_NORMAL, 11.5f, L"en-us", &fmt)) &&
+        fmt) {
+        fmt->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+        fmt->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+        IDWriteTextLayout* lay = nullptr;
+        if (SUCCEEDED(g_dw->CreateTextLayout(hint, (UINT32)wcslen(hint), fmt, pr.right - pr.left, pr.bottom - pr.top,
+                                             &lay)) &&
+            lay) {
+            D2D1_POINT_2F p = {pr.left, pr.top};
+            if (white) g_rt->DrawTextLayout(p, lay, white, D2D1_DRAW_TEXT_OPTIONS_NONE);
+            lay->Release();
+        }
+        fmt->Release();
+    }
+
+    SafeRelease(fill);
+    SafeRelease(accent);
+    SafeRelease(white);
+    SafeRelease(pill);
+}
+
+// Paints [chrome +] clock text into a fresh DIB and pushes it to the layered window.
+static void Paint(HWND hwnd, int bw, int bh, int ox, int oy, int w, int h, const EdGeom* ed) {
+    if (!hwnd || bw <= 0 || bh <= 0 || !EnsureGraphics()) return;
+
+    Frame f;
+    if (!CreateFrame(f, bw, bh)) return;
+
+    RECT rc = {0, 0, bw, bh};
+    if (SUCCEEDED(g_rt->BindDC(f.dc, &rc))) {
+        g_rt->BeginDraw();
+        g_rt->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+        D2D1_COLOR_F clear = {0, 0, 0, 0};
+        g_rt->Clear(&clear);
+
+        if (ed) DrawEditorChrome(bw, bh, ox, oy, w, h, *ed);
+        DrawClockText((float)ox, (float)oy, (float)w, (float)h);
+
+        HRESULT hr = g_rt->EndDraw();
+        if (hr == kRecreateTarget) {
+            SafeRelease(g_rt);
+            g_lastKey = 0;  // make the next tick repaint
+            g_lastTime.clear();
+        }
+
+        BLENDFUNCTION bf = {AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+        POINT src = {0, 0};
+        SIZE sz = {bw, bh};
+        UpdateLayeredWindow(hwnd, nullptr, nullptr, &sz, f.dc, &src, 0, &bf, ULW_ALPHA);
+    }
+    DestroyFrame(f);
+}
+
+// ---------------------------------------------------------------------------
+// Clock text (always English, independent of the Windows display language)
+// ---------------------------------------------------------------------------
+
+static void BuildStrings(std::wstring& t, std::wstring& d) {
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    wchar_t buf[128];
+
+    const bool bold = (g_layout.style == STYLE_BOLD);
+
+    const wchar_t* tf;
+    if (g_layout.style == STYLE_TECH) {
+        // Tech style: leading zero + AM/PM, like "08:58 PM"
+        if (g_settings.use24h) tf = g_settings.showSeconds ? L"HH:mm:ss" : L"HH:mm";
+        else tf = g_settings.showSeconds ? L"hh:mm:ss tt" : L"hh:mm tt";
+    } else if (bold || g_layout.style == STYLE_SCRIPT) {
+        // Bold style: no AM/PM marker, like "5:16"
+        if (g_settings.use24h) tf = g_settings.showSeconds ? L"HH:mm:ss" : L"HH:mm";
+        else tf = g_settings.showSeconds ? L"h:mm:ss" : L"h:mm";
+    } else {
+        if (g_settings.use24h) tf = g_settings.showSeconds ? L"HH:mm:ss" : L"HH:mm";
+        else tf = g_settings.showSeconds ? L"h:mm:ss tt" : L"h:mm tt";
+    }
+
+    int n = GetTimeFormatEx(kLocale, 0, &st, tf, buf, 128);
+    t = n > 0 ? buf : L"--:--";
+
+    const std::wstring& df = bold ? g_settings.dateFormatBold : g_settings.dateFormat;
+    n = GetDateFormatEx(kLocale, 0, &st, df.c_str(), buf, 128, nullptr);
+    d = n > 0 ? buf : L"";
+
+    if (g_layout.style == STYLE_POSTER) {
+        // "08" / "NOVEMBER" / "SUNDAY", always English and upper case
+        g_day = g_month = g_weekday = L"";
+        if (GetDateFormatEx(kLocale, 0, &st, L"dd", buf, 128, nullptr) > 0) g_day = buf;
+        if (GetDateFormatEx(kLocale, 0, &st, L"MMMM", buf, 128, nullptr) > 0) g_month = UpperText(buf);
+        if (GetDateFormatEx(kLocale, 0, &st, L"dddd", buf, 128, nullptr) > 0) g_weekday = UpperText(buf);
+        d = g_day + L"|" + g_month + L"|" + g_weekday;  // only used to notice date changes
+    }
+
+    if (g_layout.style == STYLE_TECH) {
+        // "SUN" / "08 NOVEMBER" / greeting by hour, always English and upper case
+        g_day = g_month = g_weekday = L"";
+        if (GetDateFormatEx(kLocale, 0, &st, L"ddd", buf, 128, nullptr) > 0) g_weekday = UpperText(buf);
+        if (GetDateFormatEx(kLocale, 0, &st, L"dd MMMM", buf, 128, nullptr) > 0) g_day = UpperText(buf);
+        g_greet = st.wHour < 5 ? L"NIGHT" : st.wHour < 12 ? L"MORNING" : st.wHour < 17 ? L"AFTERNOON"
+                : st.wHour < 22 ? L"EVENING" : L"NIGHT";
+        d = g_day + L"|" + g_weekday + L"|" + g_greet;  // only used to notice changes
+    }
+
+    if (g_layout.style == STYLE_SCRIPT) {
+        // "thursday" (lower case, for the script font) / "11 TH JUNE 2026" (English, upper case)
+        g_day = g_month = g_weekday = L"";
+        if (GetDateFormatEx(kLocale, 0, &st, L"dddd", buf, 128, nullptr) > 0) g_weekday = Lower(buf);
+        const wchar_t* suf = L"TH";
+        if (st.wDay % 100 < 11 || st.wDay % 100 > 13) {
+            if (st.wDay % 10 == 1) suf = L"ST";
+            else if (st.wDay % 10 == 2) suf = L"ND";
+            else if (st.wDay % 10 == 3) suf = L"RD";
+        }
+        wchar_t mbuf[64] = {};
+        GetDateFormatEx(kLocale, 0, &st, L"MMMM yyyy", mbuf, 64, nullptr);
+        wsprintfW(buf, L"%d %s %s", (int)st.wDay, suf, UpperText(mbuf).c_str());
+        g_day = buf;
+        d = g_weekday + L"|" + g_day;  // only used to notice date changes
+    }
+}
+
+static void RenderClock() {
+    if (!g_clock || !IsWindow(g_clock)) return;
+    Paint(g_clock, g_layout.w, g_layout.h, 0, 0, g_layout.w, g_layout.h, nullptr);
+}
+
+static void RenderEditor() {
+    if (!g_editor) return;
+    EdGeom ge = ComputeEdGeom(g_layout);
+    Paint(g_editor, ge.w, ge.h, ge.ox, ge.oy, g_layout.w, g_layout.h, &ge);
+}
+
+static void RefreshVisual(bool force) {
+    // Cheap check first: only format strings when the displayed second / minute changed.
+    SYSTEMTIME now;
+    GetLocalTime(&now);
+    unsigned long long key = now.wYear;
+    key = key * 13 + now.wMonth;
+    key = key * 32 + now.wDay;
+    key = key * 24 + now.wHour;
+    key = key * 60 + now.wMinute;
+    key = key * 60 + (g_settings.showSeconds ? now.wSecond : 0);
+    if (!force && key == g_lastKey) return;
+
+    std::wstring t, d;
+    BuildStrings(t, d);
+    g_lastKey = key;
+    if (!force && t == g_lastTime && d == g_lastDate) return;
+    g_lastTime = t;
+    g_lastDate = d;
+    if (g_editing) RenderEditor();
+    else RenderClock();
+}
+
+// ---------------------------------------------------------------------------
+// Clock window: plain top-level layered window (same kind of window as the editor),
+// kept just above the desktop icons layer and below every normal app window.
+// ---------------------------------------------------------------------------
+
+static BOOL CALLBACK EnumFindIconsHolder(HWND top, LPARAM lp) {
+    if (FindWindowExW(top, nullptr, L"SHELLDLL_DefView", nullptr)) {
+        *reinterpret_cast<HWND*>(lp) = top;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+// The top-level window that holds the desktop icons: Progman, or the WorkerW that owns SHELLDLL_DefView.
+static HWND FindIconsHolder() {
+    HWND progman = FindWindowW(L"Progman", nullptr);
+    if (!progman) return nullptr;
+    if (FindWindowExW(progman, nullptr, L"SHELLDLL_DefView", nullptr)) return progman;
+    HWND holder = nullptr;
+    EnumWindows(EnumFindIconsHolder, reinterpret_cast<LPARAM>(&holder));
+    return holder ? holder : progman;
+}
+
+static void PlaceClockZ() {
+    if (!g_clock || !IsWindow(g_clock) || g_editing) return;
+    const UINT f = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE;
+
+    if (g_settings.placement == L"bottom") {
+        if (GetWindow(g_clock, GW_HWNDNEXT)) SetWindowPos(g_clock, HWND_BOTTOM, 0, 0, 0, 0, f);
+        return;
+    }
+
+    HWND holder = FindIconsHolder();
+    if (!holder) return;
+
+    // Only touch the z-order when the clock has fallen below the icons layer.
+    // Walk DOWN from the clock: when it sits correctly, the icons layer is right under it,
+    // so this ends after a step or two instead of walking past every window above the clock.
+    for (HWND w = GetWindow(g_clock, GW_HWNDNEXT); w; w = GetWindow(w, GW_HWNDNEXT)) {
+        if (w == holder) return;  // still above the icons layer: nothing to do
+    }
+
+    // Insert right below the window that sits above the icons layer (never into the topmost band).
+    HWND prev = GetWindow(holder, GW_HWNDPREV);
+    if (prev && (GetWindowLongW(prev, GWL_EXSTYLE) & WS_EX_TOPMOST)) prev = nullptr;
+    SetWindowPos(g_clock, prev ? prev : HWND_TOP, 0, 0, 0, 0, f);
+}
+
+static void ApplyClockLayout() {
+    if (!g_clock || !IsWindow(g_clock)) return;
+    SetWindowPos(g_clock, nullptr, g_layout.x, g_layout.y, g_layout.w, g_layout.h,
+                 SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
+    PlaceClockZ();
+    RefreshVisual(true);
+}
+
+static LRESULT CALLBACK ClockProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_NCHITTEST:
+            return HTTRANSPARENT;
+        case WM_MOUSEACTIVATE:
+            return MA_NOACTIVATE;
+        case WM_ERASEBKGND:
+            return 1;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+// Creates the clock window once the shell (Progman) exists.
+static bool EnsureAttached() {
+    if (g_clock && IsWindow(g_clock)) return true;
+
+    HWND prog = FindWindowW(L"Progman", nullptr);
+    if (!prog) return false;
+
+    if (!g_dpiSet) {
+        SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(prog));
+        g_dpiSet = true;
+    }
+
+    g_clock = CreateWindowExW(WS_EX_LAYERED | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW, kClockClass,
+                              L"DesktopClock", WS_POPUP, 0, 0, g_layout.w, g_layout.h, nullptr, nullptr,
+                              GetModuleHandleW(nullptr), nullptr);
+    if (!g_clock) {
+        Wh_Log(L"Failed to create clock window (%lu)", GetLastError());
+        return false;
+    }
+    Wh_Log(L"Clock window created (layer: %s)", g_settings.placement.c_str());
+
+    if (!g_attachedOnce) {
+        g_attachedOnce = true;
+        g_layout = DefaultLayout(STYLE_CLASSIC);
+    }
+    if (!g_editing) ApplyClockLayout();
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Wallpaper change -> switch profile (position, size and style)
+// ---------------------------------------------------------------------------
+
+// ---- Wallpaper "pop" detection: a tiny picture of the desktop, compared before / after ----
+static const int kSnapW = 16, kSnapH = 9, kSnapN = kSnapW * kSnapH;
+static unsigned g_snap[kSnapN];      // picture of the settled wallpaper
+static bool g_snapOk = false;
+static ULONGLONG g_snapDue = 0;      // when the next settled picture should be taken
+static unsigned g_baseSnap[kSnapN];  // picture of the old wallpaper while waiting for the new one
+static ULONGLONG g_waitStart = 0;
+
+// Grabs a 16x9 picture of the work area of the monitor the clock is on (layered windows, like the clock, are not in it).
+static bool SampleScreen(unsigned* out) {
+    RECT cr = {g_layout.x, g_layout.y, g_layout.x + g_layout.w, g_layout.y + g_layout.h};
+    MONITORINFO mi = {sizeof(mi)};
+    if (!GetMonitorInfoW(MonitorFromRect(&cr, MONITOR_DEFAULTTONEAREST), &mi)) return false;
+    const int mw = mi.rcWork.right - mi.rcWork.left;
+    const int mh = mi.rcWork.bottom - mi.rcWork.top;
+    const int sx = mi.rcWork.left + mw / 10, sy = mi.rcWork.top + mh / 10;  // skip the 10% border (bars)
+    const int sw = mw * 8 / 10, sh = mh * 8 / 10;
+    if (sw < kSnapW || sh < kSnapH) return false;
+
+    HDC scr = GetDC(nullptr);
+    if (!scr) return false;
+    HDC mem = CreateCompatibleDC(scr);
+    bool ok = false;
+    if (mem) {
+        BITMAPINFO bi = {};
+        bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bi.bmiHeader.biWidth = kSnapW;
+        bi.bmiHeader.biHeight = -kSnapH;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        void* bits = nullptr;
+        HBITMAP bmp = CreateDIBSection(scr, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+        if (bmp && bits) {
+            HGDIOBJ old = SelectObject(mem, bmp);
+            SetStretchBltMode(mem, COLORONCOLOR);  // picks scattered pixels, no blur
+            if (StretchBlt(mem, 0, 0, kSnapW, kSnapH, scr, sx, sy, sw, sh, SRCCOPY)) {
+                CopyMemory(out, bits, kSnapN * sizeof(unsigned));
+                ok = true;
+            }
+            SelectObject(mem, old);
+        }
+        if (bmp) DeleteObject(bmp);
+        DeleteDC(mem);
+    }
+    ReleaseDC(nullptr, scr);
+    return ok;
+}
+
+// True when a big part of the picture changed a lot (= a new wallpaper, not a small widget updating).
+static bool SnapDiffers(const unsigned* a, const unsigned* b) {
+    int changed = 0;
+    for (int i = 0; i < kSnapN; i++) {
+        int d = abs((int)((a[i] >> 16) & 255) - (int)((b[i] >> 16) & 255)) +
+                abs((int)((a[i] >> 8) & 255) - (int)((b[i] >> 8) & 255)) +
+                abs((int)(a[i] & 255) - (int)(b[i] & 255));
+        if (d > 30) changed++;  // how different one sample point must be
+    }
+    return changed >= kSnapN / 5;  // how many points must differ (20%)
+}
+
+// Switches the clock to the layout saved for the current wallpaper (the actual work).
+static void ApplyWallpaper(bool force) {
+    std::wstring dbg;
+    std::wstring id = GetWallpaperId(&dbg);
+    std::wstring key = MakeKey(id);
+    if (!force && key == g_wallKey) return;
+    g_wallKey = key;
+    Wh_Log(L"Wallpaper changed -> %s  [%s]", id.c_str(), dbg.c_str());
+
+    Layout L;
+    if (!g_settings.sameForAll && LoadProfile(key, &L)) {
+        ClampLayoutToScreen(L);
+        g_layout = L;
+        Wh_Log(L"Wallpaper changed: loaded profile %s (style %d)", key.c_str(), L.style);
+    } else if (LoadDefaultLayout(&L)) {
+        g_layout = L;
+        Wh_Log(L"Wallpaper changed: using the default clock for %s", key.c_str());
+    } else {
+        Wh_Log(L"Wallpaper changed: no profile and no default for %s, keeping current layout", key.c_str());
+    }
+    ApplyClockLayout();
+    g_snapDue = GetTickCount64() + 600;  // new settled picture once the new wallpaper is stable
+}
+
+// Called whenever the wallpaper may have changed. A new wallpaper is not applied at once: Windows fades
+// it in, so we wait a fixed moment (setting "Wallpaper switch delay") and the clock changes together with it.
+static void CheckWallpaper(bool force) {
+    if (force) {  // settings changed: apply right now
+        if (g_wallPending && g_ctrl) KillTimer(g_ctrl, TIMER_WALL);
+        g_wallPending = false;
+        ApplyWallpaper(true);
+        return;
+    }
+    if (g_wallPending) return;  // already waiting, the timer will switch it
+    std::wstring id = GetWallpaperId(nullptr);
+    if (MakeKey(id) == g_wallKey) return;
+
+    if (g_wallKey.empty() || !g_ctrl) {  // first start
+        ApplyWallpaper(false);
+        return;
+    }
+    unsigned now[kSnapN];
+    if (g_settings.wallDelay <= 0 || !SampleScreen(now)) {  // detection turned off or not possible: switch at once
+        ApplyWallpaper(false);
+        return;
+    }
+    if (g_snapOk && SnapDiffers(g_snap, now)) {  // the new wallpaper is already on screen: switch right now
+        ApplyWallpaper(false);
+        return;
+    }
+    CopyMemory(g_baseSnap, now, sizeof(now));  // still the old picture: wait for it to change
+    g_waitStart = GetTickCount64();
+    g_wallPending = true;
+    SetTimer(g_ctrl, TIMER_WALL, 8, nullptr);  // Windows rounds this to ~16 ms
+}
+
+// ---------------------------------------------------------------------------
+// Layout editor
+// ---------------------------------------------------------------------------
+
+static Hit HitTest(POINT p) {
+    EdGeom ge = ComputeEdGeom(g_layout);
+    int l = ge.ox, t = ge.oy, r = ge.ox + g_layout.w, b = ge.oy + g_layout.h;
+    const int hr = 14;
+    auto isNear = [&](int x, int y) { return abs(p.x - x) <= hr && abs(p.y - y) <= hr; };
+    if (isNear(l, t)) return H_TL;
+    if (isNear(r, t)) return H_TR;
+    if (isNear(l, b)) return H_BL;
+    if (isNear(r, b)) return H_BR;
+    if (p.x >= l && p.x <= r && p.y >= t && p.y <= b) return H_MOVE;
+    return H_NONE;
+}
+
+static HCURSOR CursorFor(Hit h) {
+    switch (h) {
+        case H_MOVE: return LoadCursorW(nullptr, IDC_SIZEALL);
+        case H_TL:
+        case H_BR: return LoadCursorW(nullptr, IDC_SIZENWSE);
+        case H_TR:
+        case H_BL: return LoadCursorW(nullptr, IDC_SIZENESW);
+        default: return LoadCursorW(nullptr, IDC_ARROW);
+    }
+}
+
+static void ApplyEditorLayout(const Layout& L) {
+    if (!g_editor) return;
+    EdGeom old = ComputeEdGeom(g_layout);
+    bool sizeChanged = (L.w != g_layout.w || L.h != g_layout.h);
+    g_layout = L;
+    EdGeom ge = ComputeEdGeom(g_layout);
+
+    SetWindowPos(g_editor, nullptr, ge.x, ge.y, ge.w, ge.h, SWP_NOACTIVATE | SWP_NOZORDER);
+    if (sizeChanged || old.hintAbove != ge.hintAbove) RenderEditor();
+}
+
+// Switches the style of the layout being edited (live preview).
+static void SetStyle(int s) {
+    s = Clampi(s, 0, kStyleCount - 1);
+    if (s == g_layout.style) return;
+    g_layout.style = s;
+    RefreshVisual(true);  // strings depend on the style, so rebuild and repaint
+}
+
+static COLORREF g_custColors[16] = {};
+static bool g_picking = false;  // true while the color dialog is open
+
+// Opens the Windows color dialog for one color slot of the current style.
+static void PickColor(int slot) {
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    if (!g_editor || slot < 0 || slot >= kStyleColorCount[st]) return;
+
+    unsigned cur = EffectiveColor(slot);
+    CHOOSECOLORW cc = {};
+    cc.lStructSize = sizeof(cc);
+    cc.hwndOwner = g_editor;
+    cc.rgbResult = RGB((cur >> 16) & 255, (cur >> 8) & 255, cur & 255);
+    cc.lpCustColors = g_custColors;
+    cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+    g_picking = true;
+    BOOL ok = ChooseColorW(&cc);
+    g_picking = false;
+
+    if (ok) {
+        unsigned c = ((unsigned)GetRValue(cc.rgbResult) << 16) | ((unsigned)GetGValue(cc.rgbResult) << 8) |
+                     (unsigned)GetBValue(cc.rgbResult);
+        g_layout.color[st][slot] = kColorSet | c;
+        RefreshVisual(true);
+    }
+    if (g_editing && g_editor) {
+        SetForegroundWindow(g_editor);
+        SetFocus(g_editor);
+    }
+}
+
+// Back to the style's default colors (from the settings) for the current style.
+static void ResetColors() {
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    g_layout.color[st][0] = g_layout.color[st][1] = 0;
+    RefreshVisual(true);
+}
+
+// ---- Custom style editor actions ----
+
+// P / Shift+P: switch layout. Uses that layout's proportions, keeps your scale and the box center.
+static void SetPreset(int delta) {
+    if (g_layout.style != STYLE_CUSTOM) return;
+    int cur = Clampi(g_layout.preset, 0, kCustomPresetCount - 1);
+    int nxt = (cur + delta + kCustomPresetCount) % kCustomPresetCount;
+    float sc = (float)g_layout.w / (float)kPresets[cur].w;
+    Layout L = g_layout;
+    L.preset = nxt;
+    L.w = Clampi((int)(kPresets[nxt].w * sc + 0.5f), kMinW, kMaxW);
+    L.h = Clampi((int)(kPresets[nxt].h * sc + 0.5f), kMinH, kMaxH);
+    L.x = g_layout.x + (g_layout.w - L.w) / 2;
+    L.y = g_layout.y + (g_layout.h - L.h) / 2;
+    ApplyEditorLayout(L);
+    RefreshVisual(true);
+}
+
+// W: weight override for the big text (layout's own -> regular -> bold -> black)
+static void CycleWeight() {
+    if (g_layout.style != STYLE_CUSTOM) return;
+    g_layout.cweight = (Clampi(g_layout.cweight, 0, 3) + 1) % 4;
+    RefreshVisual(true);
+}
+
+// Z: back to the layout's own fonts and weight
+static void ResetCustom() {
+    if (g_layout.style != STYLE_CUSTOM) return;
+    g_layout.font[0][0] = g_layout.font[1][0] = 0;
+    g_layout.cweight = 0;
+    RefreshVisual(true);
+}
+
+// F / Shift+F: Windows font picker (installed fonts) for the main / small text
+static void PickFont(int slot) {
+    if (!g_editor || g_layout.style != STYLE_CUSTOM || slot < 0 || slot > 1) return;
+
+    LOGFONTW lf = {};
+    lstrcpynW(lf.lfFaceName, CustomFontName(g_layout, slot).c_str(), LF_FACESIZE);
+    lf.lfHeight = -22;
+    lf.lfWeight = FW_NORMAL;
+    lf.lfCharSet = DEFAULT_CHARSET;
+
+    CHOOSEFONTW cf = {};
+    cf.lStructSize = sizeof(cf);
+    cf.hwndOwner = g_editor;
+    cf.lpLogFont = &lf;
+    cf.Flags = CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT | CF_NOSCRIPTSEL;
+
+    g_picking = true;
+    BOOL ok = ChooseFontW(&cf);
+    g_picking = false;
+
+    if (ok && lf.lfFaceName[0]) {
+        lstrcpynW(g_layout.font[slot], lf.lfFaceName, 64);
+        RefreshVisual(true);
+    }
+    if (g_editing && g_editor) {
+        SetForegroundWindow(g_editor);
+        SetFocus(g_editor);
+    }
+}
+
+static std::wstring FamilyName(IDWriteFontCollection* c, UINT32 i) {
+    std::wstring r;
+    IDWriteFontFamily* fam = nullptr;
+    if (SUCCEEDED(c->GetFontFamily(i, &fam)) && fam) {
+        IDWriteLocalizedStrings* s = nullptr;
+        if (SUCCEEDED(fam->GetFamilyNames(&s)) && s) {
+            UINT32 len = 0;
+            if (SUCCEEDED(s->GetStringLength(0, &len))) {
+                std::wstring v(len + 1, L'\0');
+                if (SUCCEEDED(s->GetString(0, &v[0], len + 1))) {
+                    v.resize(len);
+                    r = v;
+                }
+            }
+            s->Release();
+        }
+        fam->Release();
+    }
+    return r;
+}
+
+// G / Shift+G: step the main / small font through the families in your custom fonts folder
+static void CycleFolderFont(int slot) {
+    if (g_layout.style != STYLE_CUSTOM || !g_customFonts || slot < 0 || slot > 1) return;
+    UINT32 n = g_customFonts->GetFontFamilyCount();
+    if (n == 0) return;
+    std::wstring cur = Lower(CustomFontName(g_layout, slot));
+    UINT32 next = 0;
+    for (UINT32 i = 0; i < n; i++) {
+        if (Lower(FamilyName(g_customFonts, i)) == cur) {
+            next = (i + 1) % n;
+            break;
+        }
+    }
+    std::wstring name = FamilyName(g_customFonts, next);
+    if (name.empty()) return;
+    lstrcpynW(g_layout.font[slot], name.c_str(), 64);
+    RefreshVisual(true);
+}
+
+// ---- Typing a 6-digit hex color in the editor ----
+
+// Called after every change: applies the color once all 6 digits are there, otherwise shows the old one.
+static void HexChanged() {
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    if (g_hexBuf.size() == 6)
+        g_layout.color[st][g_hexSlot] = kColorSet | (unsigned)(wcstoul(g_hexBuf.c_str(), nullptr, 16) & 0xFFFFFFu);
+    else
+        g_layout.color[st][g_hexSlot] = g_hexOld;
+    RefreshVisual(true);
+}
+
+static void HexAdd(wchar_t c) {
+    if (g_hexSlot < 0 || g_hexBuf.size() >= 6) return;
+    g_hexBuf += c;
+    HexChanged();
+}
+
+static void HexPaste() {
+    if (g_hexSlot < 0 || !OpenClipboard(g_editor)) return;
+    HANDLE h = GetClipboardData(CF_UNICODETEXT);
+    const wchar_t* p = h ? (const wchar_t*)GlobalLock(h) : nullptr;
+    if (p) {
+        while (*p == L' ' || *p == L'#') p++;
+        std::wstring s;
+        for (; *p && s.size() < 6; p++) {
+            wchar_t c = *p;
+            if (c >= L'a' && c <= L'f') c -= 32;
+            if ((c >= L'0' && c <= L'9') || (c >= L'A' && c <= L'F')) s += c;
+            else break;
+        }
+        GlobalUnlock(h);
+        g_hexBuf = s;
+        HexChanged();
+    }
+    CloseClipboard();
+}
+
+static void StartHexEntry(int slot) {
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    if (!g_editor || slot < 0 || slot >= kStyleColorCount[st]) return;
+    g_hexSlot = slot;
+    g_hexBuf.clear();
+    g_hexOld = g_layout.color[st][slot];
+    RenderEditor();
+}
+
+// keep = true: the typed color stays; false: the old color comes back.
+static void EndHexEntry(bool keep) {
+    if (g_hexSlot < 0) return;
+    int st = Clampi(g_layout.style, 0, kStyleCount - 1);
+    if (!keep) g_layout.color[st][g_hexSlot] = g_hexOld;
+    g_hexSlot = -1;
+    g_hexBuf.clear();
+    RefreshVisual(true);
+}
+
+// Default clock shortcut: current wallpaper goes back to the default clock.
+static void ApplyDefaultClock() {
+    Layout D;
+    if (!LoadDefaultLayout(&D)) D = DefaultLayout(STYLE_CLASSIC);  // nothing saved yet -> built-in default
+    if (g_editing) {
+        ApplyEditorLayout(D);  // preview in the editor; Enter saves it
+        RefreshVisual(true);
+        return;
+    }
+    if (!g_wallKey.empty()) Wh_DeleteValue(g_wallKey.c_str());  // drop this wallpaper's own layout
+    g_layout = D;
+    ApplyClockLayout();
+}
+
+static void DoDrag() {
+    POINT c;
+    GetCursorPos(&c);
+    int dx = c.x - g_drag.cur0.x;
+    int dy = c.y - g_drag.cur0.y;
+    const Layout& s = g_drag.l0;
+    Layout L = s;
+
+    switch (g_drag.mode) {
+        case H_MOVE:
+            L.x = s.x + dx;
+            L.y = s.y + dy;
+            break;
+        case H_BR:
+            L.w = Clampi(s.w + dx, kMinW, kMaxW);
+            L.h = Clampi(s.h + dy, kMinH, kMaxH);
+            break;
+        case H_TR: {
+            L.w = Clampi(s.w + dx, kMinW, kMaxW);
+            int nh = Clampi(s.h - dy, kMinH, kMaxH);
+            L.y = s.y + (s.h - nh);
+            L.h = nh;
+            break;
+        }
+        case H_BL: {
+            int nw = Clampi(s.w - dx, kMinW, kMaxW);
+            L.x = s.x + (s.w - nw);
+            L.w = nw;
+            L.h = Clampi(s.h + dy, kMinH, kMaxH);
+            break;
+        }
+        case H_TL: {
+            int nw = Clampi(s.w - dx, kMinW, kMaxW);
+            int nh = Clampi(s.h - dy, kMinH, kMaxH);
+            L.x = s.x + (s.w - nw);
+            L.y = s.y + (s.h - nh);
+            L.w = nw;
+            L.h = nh;
+            break;
+        }
+        default:
+            return;
+    }
+    L.style = g_layout.style;  // the style may have been changed with the keyboard during the drag
+    ApplyEditorLayout(L);
+}
+
+static void ExitEditor(bool save) {
+    if (!g_editing) return;
+    if (g_editor && GetCapture() == g_editor) ReleaseCapture();
+    g_hexSlot = -1;
+    g_hexBuf.clear();
+    g_drag.mode = H_NONE;
+    g_editing = false;
+
+    if (save) {
+        SaveProfile(g_settings.sameForAll ? std::wstring(kDefaultKey) : g_editKey, g_layout);
+        Wh_Log(L"Saved layout %d,%d %dx%d style %d for %s", g_layout.x, g_layout.y, g_layout.w, g_layout.h,
+               g_layout.style, g_editKey.c_str());
+    } else {
+        g_layout = g_backup;
+    }
+
+    if (g_editor) ShowWindow(g_editor, SW_HIDE);
+    ApplyClockLayout();
+}
+
+static LRESULT CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_ERASEBKGND:
+            return 1;
+        case WM_MOUSEACTIVATE:
+            return MA_ACTIVATE;
+        case WM_SETCURSOR:
+            if (LOWORD(lp) == HTCLIENT) {
+                POINT p;
+                GetCursorPos(&p);
+                ScreenToClient(hwnd, &p);
+                Hit h = g_drag.mode != H_NONE ? g_drag.mode : HitTest(p);
+                SetCursor(CursorFor(h));
+                return TRUE;
+            }
+            break;
+        case WM_LBUTTONDOWN: {
+            POINT p = {(short)LOWORD(lp), (short)HIWORD(lp)};
+            Hit h = HitTest(p);
+            if (h != H_NONE) {
+                g_drag.mode = h;
+                GetCursorPos(&g_drag.cur0);
+                g_drag.l0 = g_layout;
+                SetCapture(hwnd);
+            }
+            return 0;
+        }
+        case WM_MOUSEMOVE:
+            if (g_drag.mode != H_NONE && (wp & MK_LBUTTON)) DoDrag();
+            return 0;
+        case WM_LBUTTONUP:
+            if (GetCapture() == hwnd) ReleaseCapture();
+            g_drag.mode = H_NONE;
+            return 0;
+        case WM_CAPTURECHANGED:
+            g_drag.mode = H_NONE;
+            return 0;
+        case WM_RBUTTONUP:
+            ExitEditor(true);
+            return 0;
+        case WM_MOUSEWHEEL: {
+            short delta = GET_WHEEL_DELTA_WPARAM(wp);
+            float f = delta > 0 ? 1.06f : 1.0f / 1.06f;
+            Layout L = g_layout;
+            int nw = Clampi((int)(L.w * f + (delta > 0 ? 0.5f : -0.5f)), kMinW, kMaxW);
+            int nh = Clampi((int)(L.h * f + (delta > 0 ? 0.5f : -0.5f)), kMinH, kMaxH);
+            L.x += (L.w - nw) / 2;
+            L.y += (L.h - nh) / 2;
+            L.w = nw;
+            L.h = nh;
+            ApplyEditorLayout(L);
+            return 0;
+        }
+        case WM_KEYDOWN:
+            if (g_hexSlot >= 0) {  // typing a hex color: only these keys do anything
+                bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+                if (wp == VK_ESCAPE) EndHexEntry(false);
+                else if (wp == VK_RETURN) { if (g_hexBuf.size() == 6) EndHexEntry(true); }
+                else if (wp == VK_BACK) { if (!g_hexBuf.empty()) { g_hexBuf.pop_back(); HexChanged(); } }
+                else if (wp == 'V' && (GetKeyState(VK_CONTROL) & 0x8000)) HexPaste();
+                else if (wp >= VK_NUMPAD0 && wp <= VK_NUMPAD9) HexAdd((wchar_t)(L'0' + (wp - VK_NUMPAD0)));
+                else if (wp >= '0' && wp <= '9' && !shift) HexAdd((wchar_t)wp);
+                else if (wp >= 'A' && wp <= 'F') HexAdd((wchar_t)wp);
+                return 0;
+            }
+            if (wp == VK_ESCAPE) ExitEditor(false);
+            else if (wp == VK_RETURN) ExitEditor(true);
+            else if (wp == 'R') {
+                Layout d = DefaultLayout(g_layout.style, g_layout.preset);  // resets position and size, keeps the rest
+                for (int s = 0; s < kStyleCount; s++) {
+                    d.color[s][0] = g_layout.color[s][0];
+                    d.color[s][1] = g_layout.color[s][1];
+                }
+                d.cweight = g_layout.cweight;
+                lstrcpynW(d.font[0], g_layout.font[0], 64);
+                lstrcpynW(d.font[1], g_layout.font[1], 64);
+                ApplyEditorLayout(d);
+            }
+            else if (wp == 'S' || wp == VK_TAB) SetStyle((g_layout.style + 1) % kStyleCount);
+            else if (wp == 'C') { if (GetKeyState(VK_SHIFT) & 0x8000) PickColor(0); else StartHexEntry(0); }
+            else if (wp == 'V') { if (GetKeyState(VK_SHIFT) & 0x8000) PickColor(1); else StartHexEntry(1); }
+            else if (wp == 'X') ResetColors();
+            else if (wp == 'P') SetPreset((GetKeyState(VK_SHIFT) & 0x8000) ? -1 : 1);
+            else if (wp == 'F') PickFont((GetKeyState(VK_SHIFT) & 0x8000) ? 1 : 0);
+            else if (wp == 'G') CycleFolderFont((GetKeyState(VK_SHIFT) & 0x8000) ? 1 : 0);
+            else if (wp == 'W') CycleWeight();
+            else if (wp == 'Z') ResetCustom();
+            else if (wp == 'D') { SaveProfile(kDefaultKey, g_layout); ExitEditor(true); }
+            else if (wp >= '1' && wp < (WPARAM)('1' + kStyleCount)) SetStyle((int)(wp - '1'));
+            return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+static void EnterEditor() {
+    if (g_editing || !g_attachedOnce) return;
+
+    if (!g_editor) {
+        g_editor = CreateWindowExW(WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW, kEditorClass,
+                                   L"DesktopClockEditor", WS_POPUP, 0, 0, 10, 10, nullptr, nullptr,
+                                   GetModuleHandleW(nullptr), nullptr);
+        if (!g_editor) {
+            Wh_Log(L"Failed to create editor window (%lu)", GetLastError());
+            return;
+        }
+    }
+
+    g_editing = true;
+    g_backup = g_layout;
+    g_editKey = g_wallKey;
+    g_drag.mode = H_NONE;
+
+    if (g_clock) ShowWindow(g_clock, SW_HIDE);  // the editor draws the live preview itself
+
+    EdGeom ge = ComputeEdGeom(g_layout);
+    SetWindowPos(g_editor, HWND_TOPMOST, ge.x, ge.y, ge.w, ge.h, SWP_NOACTIVATE);
+    RefreshVisual(true);
+    ShowWindow(g_editor, SW_SHOW);
+    SetForegroundWindow(g_editor);
+    SetFocus(g_editor);
+}
+
+// ---------------------------------------------------------------------------
+// Controller window + worker thread
+// ---------------------------------------------------------------------------
+
+static UINT TickMs() { return g_settings.showSeconds ? 250 : 500; }
+
+static void Tick() {
+    if (g_stop) {
+        PostQuitMessage(0);
+        return;
+    }
+
+    if (!g_attachedOnce) {
+        // Only the shell explorer.exe (the one owning Progman) should run the widget.
+        HWND prog = FindWindowW(L"Progman", nullptr);
+        if (!prog) return;  // shell not ready yet (early boot) - just try again next tick
+        DWORD pid = 0;
+        GetWindowThreadProcessId(prog, &pid);
+        if (pid != GetCurrentProcessId()) {
+            Wh_Log(L"Not the shell process, widget thread exits");
+            PostQuitMessage(0);
+            return;
+        }
+    }
+
+    if (g_editing) {
+        RefreshVisual(false);  // keep the preview time ticking
+        return;
+    }
+
+    if (!EnsureAttached()) return;
+    PlaceClockZ();
+    // keep a recent picture of the settled wallpaper (one tiny capture every ~3 s)
+    if (!g_wallPending && g_wpollLeft <= 0 && GetTickCount64() >= g_snapDue) {
+        g_snapOk = SampleScreen(g_snap);
+        g_snapDue = GetTickCount64() + 3000;
+    }
+    // The shell announces wallpaper changes (WM_SETTINGCHANGE); this slow poll is only a safety net (~1 s).
+    if (++g_wallTick >= 2) {
+        g_wallTick = 0;
+        CheckWallpaper(false);
+    }
+    RefreshVisual(false);
+}
+
+static LRESULT CALLBACK CtrlProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_TIMER:
+            if (wp == TIMER_TICK) {
+                Tick();
+            } else if (wp == TIMER_WALL) {  // waiting for the new wallpaper to appear on screen
+                unsigned cur[kSnapN];
+                const bool timeout = GetTickCount64() - g_waitStart >= (ULONGLONG)g_settings.wallDelay;
+                if (timeout || g_editing || !SampleScreen(cur) || SnapDiffers(g_baseSnap, cur)) {
+                    KillTimer(hwnd, TIMER_WALL);
+                    g_wallPending = false;
+                    if (g_attachedOnce && !g_editing) ApplyWallpaper(false);
+                }
+            } else if (wp == TIMER_WPOLL) {  // short fast poll right after the shell announced a change
+                if (g_attachedOnce && !g_editing) CheckWallpaper(false);
+                if (--g_wpollLeft <= 0 || g_wallPending) KillTimer(hwnd, TIMER_WPOLL);
+            }
+            return 0;
+        case WM_HOTKEY:
+            if (g_picking) return 0;  // a color dialog is open
+            if (wp == HOTKEY_ID) {
+                if (g_editing) ExitEditor(true);
+                else EnterEditor();
+            } else if (wp == HOTKEY_DEFAULT_ID && g_attachedOnce) {
+                ApplyDefaultClock();
+            }
+            return 0;
+        case WM_SETTINGCHANGE:
+            if (wp == SPI_SETDESKWALLPAPER && g_attachedOnce && !g_editing) {
+                CheckWallpaper(false);
+                if (!g_wallPending) {  // Windows may still be writing the new wallpaper: look every 15 ms for 3 s
+                    g_wpollLeft = 200;
+                    SetTimer(hwnd, TIMER_WPOLL, 15, nullptr);
+                }
+            }
+            break;
+        case WM_DISPLAYCHANGE:
+            if (g_attachedOnce && !g_editing) {
+                ClampLayoutToScreen(g_layout);
+                ApplyClockLayout();
+            }
+            break;
+        case WM_APP_RELOAD:
+            LoadSettings();
+            g_rfUsed = g_rfNext = 0;  // forget cached font lookups
+            if (g_ctrl) SetTimer(g_ctrl, TIMER_TICK, TickMs(), nullptr);  // 250 ms only while seconds are shown
+            if (g_attachedOnce && !g_editing) CheckWallpaper(true);  // so "same clock on every wallpaper" applies at once
+            if (g_dw) LoadCustomFonts();
+            PlaceClockZ();
+            RegisterEditHotkey();
+            RefreshVisual(true);
+            return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+static DWORD WINAPI WorkerThread(LPVOID) {
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    LoadSettings();
+
+    HINSTANCE hi = GetModuleHandleW(nullptr);
+    WNDCLASSW wc = {};
+    wc.hInstance = hi;
+
+    wc.lpfnWndProc = CtrlProc;
+    wc.lpszClassName = kCtrlClass;
+    RegisterClassW(&wc);
+
+    wc.lpfnWndProc = ClockProc;
+    wc.lpszClassName = kClockClass;
+    RegisterClassW(&wc);
+
+    wc.lpfnWndProc = EditorProc;
+    wc.lpszClassName = kEditorClass;
+    RegisterClassW(&wc);
+
+    g_ctrl = CreateWindowExW(WS_EX_TOOLWINDOW, kCtrlClass, L"DesktopClockCtrl", WS_POPUP, 0, 0, 0, 0, nullptr,
+                             nullptr, hi, nullptr);
+    if (g_ctrl) {
+        SetTimer(g_ctrl, TIMER_TICK, TickMs(), nullptr);
+        RegisterEditHotkey();
+
+        MSG msg;
+        while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+
+        UnregisterHotKey(g_ctrl, HOTKEY_ID);
+        UnregisterHotKey(g_ctrl, HOTKEY_DEFAULT_ID);
+        KillTimer(g_ctrl, TIMER_TICK);
+    } else {
+        Wh_Log(L"Failed to create controller window (%lu)", GetLastError());
+    }
+
+    if (g_editor) DestroyWindow(g_editor);
+    if (g_clock && IsWindow(g_clock)) DestroyWindow(g_clock);
+    if (g_ctrl) DestroyWindow(g_ctrl);
+    g_editor = g_clock = g_ctrl = nullptr;
+
+    UnregisterClassW(kEditorClass, hi);
+    UnregisterClassW(kClockClass, hi);
+    UnregisterClassW(kCtrlClass, hi);
+
+    SafeRelease(g_rt);
+    SafeRelease(g_d2d);
+    SafeRelease(g_customFonts);
+    SafeRelease(g_dw);
+    CoUninitialize();
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Windhawk entry points
+// ---------------------------------------------------------------------------
+
+BOOL Wh_ModInit() {
+    Wh_Log(L"Desktop Clock Widget init");
+    g_stop = false;
+    g_thread = CreateThread(nullptr, 0, WorkerThread, nullptr, 0, &g_threadId);
+    return g_thread != nullptr;
+}
+
+void Wh_ModSettingsChanged() {
+    HWND ctrl = g_ctrl;
+    if (ctrl && IsWindow(ctrl)) PostMessageW(ctrl, WM_APP_RELOAD, 0, 0);
+}
+
+void Wh_ModUninit() {
+    Wh_Log(L"Desktop Clock Widget uninit");
+    g_stop = true;
+    if (g_thread) {
+        for (int i = 0; i < 50 && WaitForSingleObject(g_thread, 100) == WAIT_TIMEOUT; i++) {
+            PostThreadMessageW(g_threadId, WM_QUIT, 0, 0);
+        }
+        CloseHandle(g_thread);
+        g_thread = nullptr;
+    }
+}
