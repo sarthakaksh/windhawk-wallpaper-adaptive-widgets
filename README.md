@@ -72,7 +72,7 @@ That layout is now saved for **that wallpaper only**. Change the wallpaper and r
 
 ### Install
 
-1. Install the font first: right-click `electroharmonix.ttf` → **Install**. The **4th style (Tech)** is made for this font, so it looks right only with it.
+1. Install the font first: right-click `electroharmonix.ttf` → **Install** [right click > show more options > install for all users]. The **4th style (Tech)** is made for this font, so it looks right only with it.
 2. In Windhawk → **Create a new mod**, paste the code from `Clock-s`, click **Compile Mod**, and make sure it is **Enabled**.
 
 ### Edit the clock for each wallpaper
@@ -102,6 +102,7 @@ In the editor, **Custom style (5th)** also lets you pick fonts with **`F`** or *
 ---
 
 ## 📊 YASB (status bar) setup
+NOTE- YASB is not necessary to use the setup. You can use **any** other wallpapaer switcher or ever change wallpapaer manually. 
 
 1. Install **YASB** from https://github.com/amnweb/yasb and run it once.
 2. Open `C:\Users\<YourName>\.config\yasb\`
