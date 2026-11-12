@@ -111,6 +111,12 @@ NOTE- YASB is not necessary to use the setup. You can use **any** other wallpapa
 
 ---
 
+## 🤝 Contributing
+
+Contributions are always welcome! Whether it's a bug fix, a new clock style, or sharing your own wallpaper + cutout setups, feel free to open a **Pull Request**.
+
+---
+
 ## 🙏 Credits
 
 - Audio visualizer mod by **sarthakaksh**, forked from **NeiZ [NeiZqwe]** and contributors
