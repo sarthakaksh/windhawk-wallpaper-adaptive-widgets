@@ -15,6 +15,7 @@ A collection of **Windhawk mods** and a **YASB config** for a desktop that chang
 <img width="1920" height="1200" alt="wMUItN9MmF" src="https://github.com/user-attachments/assets/3133d1f0-adc5-4e74-a406-c891d6af43d1" />
 <img width="1920" height="1200" alt="JDb7sEplN8" src="https://github.com/user-attachments/assets/93916d05-18d4-4250-a0dc-9aaf7dab0613" />
 <img width="1920" height="1200" alt="rdARNdq4YY" src="https://github.com/user-attachments/assets/3edf7184-9293-440c-bf1b-b81503c82713" />
+<img width="1920" height="1200" alt="jFlKfd5dT1" src="https://github.com/user-attachments/assets/49b98172-25d7-422c-9632-f040682336af" />
 
 
 
