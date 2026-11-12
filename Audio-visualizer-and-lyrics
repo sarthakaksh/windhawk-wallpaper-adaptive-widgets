@@ -5,7 +5,7 @@
 // @description:ru  Настраиваемый аудиовизуализатор с синхронизированным текстом песен, управлением медиа и эквалайзером, с опциональным доступом к сети для загрузки текстов с lrclib.net
 // @version         1.2.0
 // @license         MIT
-// @author          sarthakaksh, forked from NeiZ
+// @author          sarthakaksh, forked from NeiZ [NeiZqwe]
 // @github          https://github.com/sarthakaksh
 // @include         explorer.exe
 // @compilerOptions -lole32 -luuid -lmmdevapi -lksuser -lgdi32 -luser32 -lgdiplus -ldwmapi -lruntimeobject -lwindowsapp -lwinhttp -lshell32 -ld3d11 -ldxgi -ldcomp -ld2d1
@@ -159,6 +159,15 @@ The Player popup is integrated into the tray on both Windows 11 and Windows 10.
 
 ![15](https://i.imgur.com/Kewsx9C.png)
 
+
+---
+## Desktop layout editor shortcut
+
+Press **Ctrl + Alt + Shift + L** anywhere to open the Desktop Layout Editor directly.
+
+This works even if the Player tray button is hidden, disabled, or missing after a Windows update. If you can't see the tray button, use this shortcut. The Player popup also has an "Open desktop layout editor" button on its settings page.
+
+If another program already uses this shortcut, the mod logs a registration failure (visible in the Windhawk log) and the shortcut won't work until the other program releases it.
 
 ---
 ## Performance
@@ -2470,6 +2479,9 @@ static constexpr UINT WM_VIZ_OPEN_LAYOUT_EDITOR = WM_APP + 0x2A4;
 static constexpr UINT WM_VIZ_DEBUG_SYNC = WM_APP + 0x2A5;
 static constexpr UINT WM_VIZ_DEBUG_SAMPLE = WM_APP + 0x2A6;
 static constexpr UINT WM_VIZ_REFRESH_SERVICES = WM_APP + 0x2A8;
+// Global hotkey (Ctrl+Alt+Shift+L) that opens the Desktop Layout Editor even
+// when the Player tray button is missing.
+static constexpr int kLayoutEditorHotkeyId = 0x4C45;
 static std::atomic<bool> g_overlayServicesRefreshPending{false};
 static std::atomic<bool> g_audioCaptureRestartRequested{false};
 
@@ -15631,6 +15643,9 @@ static constexpr UINT kEqNativeTrayRetryTimerId = 0x4E52;
 static constexpr UINT kEqNativeTrayRetryDelayMs = 300;
 static constexpr int kEqNativeTrayMaxRetryCount = 8;
 static int g_eqNativeTrayRetryCount = 0;
+// Set from the settings thread; consumed by the overlay thread, which retries
+// the tray add/remove until the real state matches the setting.
+static std::atomic<int> g_eqTrayRefreshBurst{0};
 
 static LRESULT CALLBACK EqNativeTrayMessageProc(
     HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -30923,6 +30938,14 @@ static DWORD WINAPI OverlayThreadProc(LPVOID) {
         StartEqMediaCapture();
     g_shellServicesStarted.store(true, std::memory_order_release);
 
+    // hwnd = nullptr -> WM_HOTKEY is posted to this thread's queue, so it
+    // keeps working when overlay windows are destroyed and recreated.
+    if (!RegisterHotKey(nullptr, kLayoutEditorHotkeyId,
+                        MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, 'L')) {
+        Wh_Log(L"OverlayThreadProc: Ctrl+Alt+Shift+L hotkey registration failed, error=%lu",
+               GetLastError());
+    }
+
     {
         const bool visible = RefreshDesktopVisualizerRuntime(startupSettings, true);
         g_currentOverlayTimerMs = visible
@@ -30993,6 +31016,28 @@ static DWORD WINAPI OverlayThreadProc(LPVOID) {
             UpdateVisualizerOcclusion();
             PollWallpaperChange(wallpaperNotified);
             ProcessWallpaperProfileSwitch();
+
+            if (g_eqTrayRefreshBurst.load(std::memory_order_acquire) > 0) {
+                static ULONGLONG lastTrayBurstMs = 0;
+                const ULONGLONG trayNowMs = GetTickCount64();
+                if (trayNowMs - lastTrayBurstMs >= 400) {
+                    lastTrayBurstMs = trayNowMs;
+                    g_eqTrayRefreshBurst.fetch_sub(1, std::memory_order_acq_rel);
+
+                    const bool wantTray = GetSettingsSnapshot().showMediaEqTrayButton;
+                    bool settled = false;
+                    if (g_eqIsWindows11) {
+                        EqEnsureXamlButton();
+                        settled = g_eqXamlInjectionReady.load(
+                                      std::memory_order_acquire) == wantTray;
+                    } else {
+                        EqEnsureNativeTrayIcon();
+                        settled = g_eqNativeTrayRegistered == wantTray;
+                    }
+                    if (settled)
+                        g_eqTrayRefreshBurst.store(0, std::memory_order_release);
+                }
+            }
 
             const ULONGLONG nowMs = GetTickCount64();
             if (nowMs - lastShellCheckMs >= 5000) {
@@ -31072,6 +31117,12 @@ static DWORD WINAPI OverlayThreadProc(LPVOID) {
                     g_running.store(false, std::memory_order_release);
                     goto overlay_exit;
                 }
+                if (msg.message == WM_HOTKEY &&
+                    msg.wParam == static_cast<WPARAM>(kLayoutEditorHotkeyId)) {
+                    if (g_running.load(std::memory_order_acquire))
+                        LayoutEditBegin();  // if already open, it just focuses it
+                    continue;
+                }
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
@@ -31079,6 +31130,7 @@ static DWORD WINAPI OverlayThreadProc(LPVOID) {
     }
 
 overlay_exit:
+    UnregisterHotKey(nullptr, kLayoutEditorHotkeyId);
     CloseWallpaperChangeWatch();
     if (g_volumeKeyHook) {
         UnhookWindowsHookEx(g_volumeKeyHook);
@@ -31496,10 +31548,9 @@ void Wh_ModSettingsChanged() {
 
     if (oldShowMediaEqTrayButton != newShowMediaEqTrayButton ||
         (g_eqIsWindows11 && oldTrayButtonPosition != newTrayButtonPosition)) {
-        if (g_eqIsWindows11)
-            EqEnsureXamlButton();
-        else if (oldShowMediaEqTrayButton != newShowMediaEqTrayButton)
-            EqEnsureNativeTrayIcon();
+        // Do the work on the overlay thread (same thread that works at startup),
+        // with retries, instead of on the settings thread.
+        g_eqTrayRefreshBurst.store(20, std::memory_order_release);
     }
 
     const bool eqMediaCaptureNeededBefore =
