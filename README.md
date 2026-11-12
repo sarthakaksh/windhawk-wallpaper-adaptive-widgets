@@ -57,9 +57,9 @@ The mods **will not work** without it.
 
 ### Edit the layout for each wallpaper
 
-1. Make sure the **Player** is enabled in the mod settings (**Player Menu → Show Player tray button**). A button appears in your system tray.
+1. Make sure the **Player** is enabled in the mod settings (**Player Menu → Show Player tray button**).
 2. Set the wallpaper you want to customise.
-3. Click the **Player** tray button → click the **⚙️ gear** → **Open desktop layout editor**.
+3. Press Ctrl+Alt+Shift+L to open desktop layout editor
 4. Move the visualizer, lyrics and album widget where you like, change bars and colors, and optionally choose a **cutout PNG**.
 5. Click **Apply**.
 
