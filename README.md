@@ -62,6 +62,9 @@ The mods **will not work** without it.
 3. Move the visualizer, lyrics and album widget where you like, change bars and colors, and optionally choose a **cutout PNG**.
 4. Click **Apply**.
 
+<img width="1920" height="1200" alt="rpGdjpW1b3" src="https://github.com/user-attachments/assets/8c2314d4-d199-48bc-9b19-350e603c7fcb" />
+
+
 That layout is now saved for **that wallpaper only**. Change the wallpaper and repeat. 🎉
 
 > To show lyrics, turn on **Lyrics → Enable lyrics widget** in the mod settings.
@@ -81,6 +84,9 @@ That layout is now saved for **that wallpaper only**. Change the wallpaper and r
 2. Press **`Ctrl + Alt + Shift + C`** to enter the layout editor.
 3. Drag to move, drag the corners (or scroll) to resize, and press **`S`** to switch between the 7 styles. [Style 6 have 7 more style inside it so you have many styles].
 4. Press **`Enter`** to save. **`Esc`** cancels.
+
+<img width="1920" height="1200" alt="TxmyqlWDrG" src="https://github.com/user-attachments/assets/61c080ec-692e-4c8c-a9e4-266ac8f8cee1" />
+
 
 The clock now remembers that position, size and style for **that wallpaper**. Repeat for your other wallpapers.
 
