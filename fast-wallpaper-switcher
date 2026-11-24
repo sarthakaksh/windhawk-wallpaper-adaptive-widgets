@@ -1,7 +1,7 @@
 // ==WindhawkMod==
 // @id              fast-wallpaper-switcher
 // @name            Fast Wallpaper Switcher
-// @description     Wallpaper carousel picker with Fade / Circle / Slide / Zoom... transitions, and Many image preview styles.
+// @description     Wallpaper carousel picker (like YASB's) with Fade / Circle / Slide / Zoom transitions, hotkeys and triggers for status bars. Extracted from the Dynamic Island mod.
 // @version         1.1.0
 // @author          sarthakaksh
 // @github          https://github.com/sarthakaksh
@@ -240,11 +240,11 @@ constexpr double kWidgetRevealDelaySeconds = 0.20;
 // How long the finished picture stays over the desktop. The audio visualizer
 // can only show once it is gone, so this is also the visualizer's delay.
 // Keep it at least as long as the clock delay above.
-constexpr double kWallpaperHoldSeconds = 0.60;
+constexpr double kWallpaperHoldSeconds = 0.80;
 // Extra hold per MB of the new picture file (big pictures decode slower).
 constexpr double kWallpaperHoldPerMB = 0.04;
 // The hold never goes beyond this.
-constexpr double kWallpaperHoldMaxSeconds = 1.0;
+constexpr double kWallpaperHoldMaxSeconds = 2.0;
 
 enum class Transition { Fade, Circle, Slide, Zoom, Ink, Slash, Whip, Glitch, Warp, Burn, Freeze, Dust, Count };
 constexpr PCWSTR kTransitionNames[] = {L"Fade", L"Circle", L"Slide", L"Zoom",
@@ -4689,7 +4689,18 @@ DWORD WINAPI WallpaperChangeThreadProc(LPVOID parameter) {
             holdSeconds += mb * kWallpaperHoldPerMB;
         }
     }
-    holdSeconds += std::max(0.0, setTook - 0.05) * 2.0;
+    holdSeconds += std::max(0.0, setTook - 0.05) * 4.0;
+    // Probe how busy the compositor is: a few frames right after the change.
+    // On a loaded system they are slow, and Windows is also slow to finish
+    // showing the new wallpaper, so the picture must stay up longer.
+    {
+        const double probeStart = NowSeconds();
+        for (int i = 0; i < 6 && !g_unloading; i++) {
+            WaitForFrame();
+        }
+        const double perFrame = (NowSeconds() - probeStart) / 6.0;
+        holdSeconds += std::max(0.0, perFrame - 0.020) * 60.0;
+    }
     holdSeconds = std::min(holdSeconds, kWallpaperHoldMaxSeconds);
     Wh_Log(L"Wallpaper hold %.2f s (SetWallpaper took %.3f s)", holdSeconds,
            setTook);
@@ -4762,8 +4773,8 @@ DWORD WINAPI WallpaperChangeThreadProc(LPVOID parameter) {
         if (sampled) {
             SetWindowDisplayAffinity(window, WDA_NONE);
         }
-        for (int step = 2; step >= 0; step--) {
-            BLENDFUNCTION blend{AC_SRC_OVER, 0, (BYTE)(step * 255 / 2),
+        for (int step = 7; step >= 0; step--) {
+            BLENDFUNCTION blend{AC_SRC_OVER, 0, (BYTE)(step * 255 / 7),
                                 AC_SRC_ALPHA};
             UpdateLayeredWindow(window, nullptr, nullptr, nullptr, nullptr,
                                 nullptr, 0, &blend, ULW_ALPHA);
