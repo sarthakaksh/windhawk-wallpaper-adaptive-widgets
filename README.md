@@ -114,6 +114,10 @@ A wallpaper carousel picker with animated transitions, built on the **Mac Island
 
 It also tells the Desktop Clock mod to switch its layout at the right moment, so the clock never flashes the old layout during a change.
 
+<img width="1920" height="1200" alt="Gnqd6WwbES" src="https://github.com/user-attachments/assets/dc4f76e0-ecd0-4a9e-9b41-9b6cd2b35005" />
+<img width="1920" height="1200" alt="lOBqWGPaDp" src="https://github.com/user-attachments/assets/b37a22e8-9a0c-45a0-854a-59d6c2171b0d" />
+
+
 ### Install
 
 1. In Windhawk → **Create a new mod**.
