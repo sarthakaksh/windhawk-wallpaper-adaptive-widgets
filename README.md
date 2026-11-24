@@ -157,8 +157,8 @@ Contributions are always welcome! Whether it's a bug fix, a new clock style, or 
 
 - Audio visualizer mod by **sarthakaksh**, forked from **NeiZ [NeiZqwe]** and contributors
 - Fast Wallpaper Switcher mod by **sarthakaksh**, built on top of the **Mac Island & Dock** Windhawk mod
-  - **Ink transition** is taken from **[pocket-dots](https://github.com/diegoMalagrida/pocket-dots)** by **diegoMalagrida** (Linux)
-  - Many ideas and features are taken from **[skwd-wall](https://github.com/liixini/skwd-wall)** by **liixini** (Linux)
+  - **Ink transition** is inspired from **[pocket-dots](https://github.com/diegoMalagrida/pocket-dots)** by **diegoMalagrida** (Linux)
+  - Many ideas and features are inspired from **[skwd-wall](https://github.com/liixini/skwd-wall)** by **liixini** (Linux)
 - Lyrics from **[LRCLIB](https://lrclib.net)**
 - Built on **[Windhawk](https://windhawk.net)** and **[YASB](https://github.com/amnweb/yasb)**
 
