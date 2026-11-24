@@ -4,6 +4,7 @@ A collection of **Windhawk mods** and a **YASB config** for a desktop that chang
 
 - 🎵 **Audio Visualizer + Lyrics** that remembers its position and layout **per wallpaper**
 - 🕒 **Desktop Clock** that changes style and position per wallpaper
+- 🖼️ **Fast Wallpaper Switcher** with 12 picker styles and 12 animated transitions (Ink, Burn, Freeze, Dust, Warp, Glitch...)
 - 📊 **YASB status bar** config and theme
 - 🖼️ Sample **wallpapers** and **cutouts** (for the 3D "behind the subject" effect)
 
@@ -23,6 +24,7 @@ A collection of **Windhawk mods** and a **YASB config** for a desktop that chang
 ## ⚠️ Step 1: Turn off the wallpaper change animation (important!)
 
 The mods switch layouts when your wallpaper changes. Windows' fade animation can make this look glitchy, so turn it off first.
+(The **Fast Wallpaper Switcher** below does its own transition, so this matters even more if you use it.)
 
 1. Press `Win + R` to open the Run dialog.
 2. Type this and press Enter:
@@ -106,9 +108,37 @@ The clock now remembers that position, size and style for **that wallpaper**. Re
 In the editor, **Custom style (5th)** also lets you pick fonts with **`F`** or **`G`**.
 
 ---
+## 🖼️ Step 5: Fast Wallpaper Switcher mod
+
+A wallpaper carousel picker with animated transitions, built on the **Mac Island & Dock** Windhawk mod. See [Credits](#-credits).
+
+It also tells the Desktop Clock mod to switch its layout at the right moment, so the clock never flashes the old layout during a change.
+
+### Install
+
+1. In Windhawk → **Create a new mod**.
+2. Open the file `Fast-wallpaper-switcher` from this repo and **copy all of its code**.
+3. **Select everything**, delete it, and **paste** the copied code.
+4. Click **Compile Mod**, then make sure the mod is **Enabled**.
+5. Press `Ctrl + Alt + Shift + W`. The first time, it asks for your wallpaper folder.
+
+### Transitions
+
+Fade, Circle, Slide, Zoom, **Ink**, **Slash**, **Whip**, **Glitch**, **Hyperspace**, **Burn**, **Freeze**, **Dust**. Lengths, colors and look are adjustable in the mod settings.
+
+### Ink and Dust: use a subject cutout
+
+These two use a PNG cutout of the wallpaper's subject (transparent background, **same size as the wallpaper**). You can reuse the PNGs from the `cutout/` folder.
+
+1. Open the picker and select the wallpaper.
+2. Press `T` until Ink or Dust is selected.
+3. Press `U` and choose the cutout PNG. It is remembered per wallpaper.
+4. Without a cutout, Ink uses ink drops and Dust uses a wind wave.
+   
+---
 
 ## 📊 YASB (status bar) setup
-NOTE- YASB is not necessary to use the setup. You can use **any** other wallpapaer switcher or ever change wallpapaer manually. 
+NOTE- YASB is not necessary to use the setup. The **Fast Wallpaper Switcher** above can change wallpapers for you, or you can use **any** other wallpaper switcher or change wallpaper manually.
 
 1. Install **YASB** from https://github.com/amnweb/yasb and run it once.
 2. Open `C:\Users\<YourName>\.config\yasb\`
@@ -126,6 +156,9 @@ Contributions are always welcome! Whether it's a bug fix, a new clock style, or 
 ## 🙏 Credits
 
 - Audio visualizer mod by **sarthakaksh**, forked from **NeiZ [NeiZqwe]** and contributors
+- Fast Wallpaper Switcher mod by **sarthakaksh**, built on top of the **Mac Island & Dock** Windhawk mod
+  - **Ink transition** is taken from **[pocket-dots](https://github.com/diegoMalagrida/pocket-dots)** by **diegoMalagrida** (Linux)
+  - Many ideas and features are taken from **[skwd-wall](https://github.com/liixini/skwd-wall)** by **liixini** (Linux)
 - Lyrics from **[LRCLIB](https://lrclib.net)**
 - Built on **[Windhawk](https://windhawk.net)** and **[YASB](https://github.com/amnweb/yasb)**
 
