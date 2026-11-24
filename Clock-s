@@ -2,7 +2,7 @@
 // @id              desktop-clock-widget
 // @name            Desktop Clock Widget
 // @description     Time + date widget on the desktop with multiple styles. Remembers its position, size and style separately for every wallpaper, with a drag-to-edit layout mode.
-// @version         0.3.0
+// @version         0.3.1          
 // @author          sarthakaksh
 // @github          https://github.com/sarthakaksh
 // @include         explorer.exe
@@ -31,6 +31,7 @@ Press the editor shortcut (default **Ctrl+Alt+Shift+C**) to enter layout mode:
 * Mouse wheel scales the clock around its center
 * **S** (or **Tab**) cycles through the styles, **1** / **2** picks a style directly
 * **Enter** or **right-click** (or the shortcut again) saves, **Esc** cancels, **R** resets position and size
+* **Ctrl+C** copies the whole layout (position, size, style, colors, fonts) and **Ctrl+V** pastes it onto another wallpaper's clock. The copy is temporary: it is only kept in memory until the mod reloads, and a pasted layout is stored only when you save it
 
 ## Per-wallpaper profiles
 The position, size and style you save are stored for the wallpaper that is active at that moment.
@@ -151,6 +152,8 @@ Profiles saved by older versions load as the Classic style.
 #include <d2d1helper.h>
 #include <dwrite.h>
 #include <dwrite_3.h>
+#include <shobjidl.h>
+#include <vector>
 
 #include <algorithm>
 #include <atomic>
@@ -168,6 +171,7 @@ static const wchar_t kEditorClass[] = L"WhDesktopClock_Editor";
 static const wchar_t kLocale[] = L"en-US";
 
 #define WM_APP_RELOAD (WM_APP + 1)
+#define WM_APP_WALLPAPER_NOW (WM_APP + 2)  // posted by another mod right after it sets a wallpaper
 #define TIMER_TICK 1
 #define TIMER_WALL 2   // one-shot: switch the clock layout after the wallpaper delay
 #define TIMER_WPOLL 3  // short fast poll right after the shell announces a wallpaper change
@@ -177,7 +181,7 @@ static const wchar_t kLocale[] = L"en-US";
 
 static const int kMinW = 120, kMinH = 50, kMaxW = 3000, kMaxH = 1500;
 static const int kDefaultW = 360, kDefaultH = 150;
-static const int kMargin = 14, kHintH = 114, kHintMinW = 440;
+static const int kMargin = 14, kHintH = 132, kHintMinW = 440;
 
 // Styles. To add a new one: bump kStyleCount, add a name + default size below,
 // write a DrawClockXxx() function and add it to the switch in DrawClockText().
@@ -364,10 +368,13 @@ static int g_rfUsed = 0, g_rfNext = 0;
 static bool g_attachedOnce = false;
 static bool g_dpiSet = false;
 static bool g_editing = false;
+static bool g_clockNeedsShow = true;  // true when the mod itself must show the clock (first start, after the editor)
 static DragState g_drag;
 static int g_hexSlot = -1;     // >= 0 while a hex color is being typed (the color slot it is for)
 static std::wstring g_hexBuf;  // hex digits typed so far
 static unsigned g_hexOld = 0;  // the slot's color before typing (restored if cancelled)
+static Layout g_clip = {};     // temporary copied layout (memory only, never saved)
+static bool g_clipOk = false;  // true once something has been copied
 
 static ID2D1Factory* g_d2d = nullptr;
 static IDWriteFactory* g_dw = nullptr;
@@ -605,30 +612,104 @@ static std::wstring TranscodedFingerprint() {
     return lastFp;
 }
 
-// Identity of the current wallpaper. Uses the real image path(s) when Windows exposes them,
-// otherwise (slideshow / Spotlight) a fingerprint of the rendered wallpaper file.
-static std::wstring GetWallpaperId(std::wstring* dbg) {
+
+// Asks Windows itself which picture is on the (primary) monitor. This sees wallpaper changes made through
+// the shell's wallpaper interface, which the registry values do not always report.
+static IDesktopWallpaper* g_dwp = nullptr;
+static const CLSID kClsidDesktopWallpaper = {0xC2CF3110, 0x460E, 0x4FC1, {0xB9, 0xD0, 0x8A, 0x1C, 0x0C, 0x9C, 0xC4, 0xBD}};
+
+static std::wstring ReadShellWallpaperPath() {
+    std::wstring out;
+    if (!g_dwp) {
+        if (FAILED(CoCreateInstance(kClsidDesktopWallpaper, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&g_dwp)))) {
+            g_dwp = nullptr;
+            return out;
+        }
+    }
+    MONITORINFO mi = {sizeof(mi)};
+    GetMonitorInfoW(MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY), &mi);
+    const POINT c = {(mi.rcMonitor.left + mi.rcMonitor.right) / 2, (mi.rcMonitor.top + mi.rcMonitor.bottom) / 2};
+
+    UINT count = 0;
+    if (FAILED(g_dwp->GetMonitorDevicePathCount(&count))) {
+        SafeRelease(g_dwp);  // the shell went away: create it again next time
+        return out;
+    }
+    std::wstring monId;
+    bool found = false;
+    for (UINT i = 0; i < count && !found; i++) {
+        PWSTR p = nullptr;
+        if (SUCCEEDED(g_dwp->GetMonitorDevicePathAt(i, &p)) && p) {
+            RECT r = {};
+            if (SUCCEEDED(g_dwp->GetMonitorRECT(p, &r)) && PtInRect(&r, c)) {
+                monId = p;
+                found = true;
+            }
+            CoTaskMemFree(p);
+        }
+    }
+    PWSTR path = nullptr;
+    if (SUCCEEDED(g_dwp->GetWallpaper(found ? monId.c_str() : nullptr, &path)) && path) {
+        out = path;
+        CoTaskMemFree(path);
+    }
+    return out;
+}
+
+// Identity of the current wallpaper: ONE canonical id, whatever program set it.
+// 'legacy' (optional) receives ids older versions used for the same picture, so saved layouts still load.
+static std::wstring GetWallpaperId(std::wstring* dbg, std::vector<std::wstring>* legacy = nullptr) {
     std::wstring a = ReadTranscodedCachePath();
     std::wstring b = ReadRegString(HKEY_CURRENT_USER, L"Control Panel\\Desktop", L"WallPaper");
     if (b.empty()) {
         wchar_t p[MAX_PATH] = {};
         if (SystemParametersInfoW(SPI_GETDESKWALLPAPER, MAX_PATH, p, 0)) b = p;
     }
-    if (dbg) *dbg = L"cache=" + a + L" | wallpaper=" + b;
+    std::wstring s = ReadShellWallpaperPath();
+    if (dbg) *dbg = L"shell=" + s + L" | cache=" + a + L" | wallpaper=" + b;
 
+    const bool sOk = !s.empty() && !IsTranscoded(s);
+    const bool aOk = !a.empty() && !IsTranscoded(a);
+    const bool bOk = !b.empty() && !IsTranscoded(b);
+
+    auto norm = [](std::wstring p) {
+        for (auto& c : p) {
+            if (c == L'/') c = L'\\';
+        }
+        while (!p.empty() && p.back() == L' ') p.pop_back();
+        return Lower(p);
+    };
+
+    // The shell's answer wins; then the registry values (Windows Settings keeps the original path in "cache").
+    std::wstring raw = sOk ? s : (bOk ? b : (aOk ? a : std::wstring()));
     std::wstring id;
-    if (!a.empty() && !IsTranscoded(a)) id = Lower(a);
-    if (!b.empty() && !IsTranscoded(b)) {
-        if (!id.empty()) id += L"|";
-        id += Lower(b);
-    }
-    if (id.empty()) {
-        std::wstring fp = TranscodedFingerprint();
+    if (!raw.empty()) {
+        id = norm(raw);
+    } else {
+        std::wstring fp = TranscodedFingerprint();  // slideshow / Spotlight
         id = fp.empty() ? L"(solid color)" : fp;
+    }
+
+    if (legacy) {
+        legacy->clear();
+        auto add = [&](const std::wstring& v) {
+            if (v.empty() || v == id) return;
+            if (std::find(legacy->begin(), legacy->end(), v) != legacy->end()) return;
+            legacy->push_back(v);
+        };
+        if (!raw.empty()) {
+            // Only ids built from values that really are this picture (a stale registry value must not
+            // pull in another wallpaper's layout).
+            const bool aSame = aOk && norm(a) == id;
+            const bool bSame = bOk && norm(b) == id;
+            add(Lower(raw));
+            if (aSame) add(Lower(a));
+            if (bSame) add(Lower(b));
+            if (aSame && bSame) add(Lower(a) + L"|" + Lower(b));
+        }
     }
     return id;
 }
-
 static std::wstring MakeKey(const std::wstring& path) {
     unsigned long long h = 1469598103934665603ULL;  // FNV-1a
     for (wchar_t c : path) {
@@ -2050,15 +2131,23 @@ static void DrawEditorChrome(int bw, int bh, int ox, int oy, int w, int h, const
                   kStyleNames[STYLE_CUSTOM]);
     }
 
+    wchar_t clip[160];
+    if (g_clipOk)
+        wsprintfW(clip, L"Ctrl+C: copy layout  \u00B7  Ctrl+V: paste (copied: %s %d\u00D7%d)",
+                  kStyleNames[Clampi(g_clip.style, 0, kStyleCount - 1)], g_clip.w, g_clip.h);
+    else
+        wsprintfW(clip, L"Ctrl+C: copy layout  \u00B7  Ctrl+V: paste (nothing copied yet)");
+
     wchar_t hint[1024];
     wsprintfW(hint,
               L"Drag to move  \u00B7  drag corners or scroll to resize\n"
               L"S or 1-%d: change style (%s)  \u00B7  R: reset  \u00B7  %d\u00D7%d\n"
               L"%s\n"
               L"%s"
+              L"%s\n"
               L"D: set as default clock  \u00B7  %s: load default\n"
               L"Enter / right-click: save  \u00B7  Esc: cancel",
-              kStyleCount, kStyleNames[st], w, h, colors, extra, g_settings.defHotkey.c_str());
+              kStyleCount, kStyleNames[st], w, h, colors, extra, clip, g_settings.defHotkey.c_str());
 
     IDWriteTextFormat* fmt = nullptr;
     if (SUCCEEDED(g_dw->CreateTextFormat(L"Segoe UI", nullptr, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL,
@@ -2267,8 +2356,12 @@ static void PlaceClockZ() {
 
 static void ApplyClockLayout() {
     if (!g_clock || !IsWindow(g_clock)) return;
-    SetWindowPos(g_clock, nullptr, g_layout.x, g_layout.y, g_layout.w, g_layout.h,
-                 SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
+    UINT flags = SWP_NOACTIVATE | SWP_NOZORDER;
+    if (g_clockNeedsShow) {  // only force it visible when we hid it ourselves or just created it
+        flags |= SWP_SHOWWINDOW;
+        g_clockNeedsShow = false;
+    }
+    SetWindowPos(g_clock, nullptr, g_layout.x, g_layout.y, g_layout.w, g_layout.h, flags);
     PlaceClockZ();
     RefreshVisual(true);
 }
@@ -2305,6 +2398,7 @@ static bool EnsureAttached() {
         return false;
     }
     Wh_Log(L"Clock window created (layer: %s)", g_settings.placement.c_str());
+    g_clockNeedsShow = true;
 
     if (!g_attachedOnce) {
         g_attachedOnce = true;
@@ -2382,14 +2476,34 @@ static bool SnapDiffers(const unsigned* a, const unsigned* b) {
 // Switches the clock to the layout saved for the current wallpaper (the actual work).
 static void ApplyWallpaper(bool force) {
     std::wstring dbg;
-    std::wstring id = GetWallpaperId(&dbg);
+    std::vector<std::wstring> legacy;
+    std::wstring id = GetWallpaperId(&dbg, &legacy);
     std::wstring key = MakeKey(id);
     if (!force && key == g_wallKey) return;
     g_wallKey = key;
     Wh_Log(L"Wallpaper changed -> %s  [%s]", id.c_str(), dbg.c_str());
 
     Layout L;
-    if (!g_settings.sameForAll && LoadProfile(key, &L)) {
+    bool have = false;
+    if (!g_settings.sameForAll) {
+        have = LoadProfile(key, &L);
+        if (!have) {
+            // A layout saved by an older version under another id for this same picture:
+            // move it to the new key so it keeps working from now on.
+            for (const std::wstring& lid : legacy) {
+                std::wstring lk = MakeKey(lid);
+                if (lk != key && LoadProfile(lk, &L)) {
+                    have = true;
+                    SaveProfile(key, L);
+                    Wh_DeleteValue(lk.c_str());
+                    Wh_Log(L"Migrated saved layout %s -> %s", lk.c_str(), key.c_str());
+                    break;
+                }
+            }
+        }
+    }
+
+    if (have) {
         ClampLayoutToScreen(L);
         g_layout = L;
         Wh_Log(L"Wallpaper changed: loaded profile %s (style %d)", key.c_str(), L.style);
@@ -2681,6 +2795,22 @@ static void EndHexEntry(bool keep) {
     RefreshVisual(true);
 }
 
+// Ctrl+C in the editor: remember the whole layout (position, size, style, colors, fonts) in memory only.
+static void CopyLayout() {
+    g_clip = g_layout;
+    g_clipOk = true;
+    RenderEditor();  // refresh the hint so it shows what was copied
+}
+
+// Ctrl+V in the editor: apply the copied layout as a preview. It is stored only when the editor saves.
+static void PasteLayout() {
+    if (!g_clipOk) return;
+    Layout P = g_clip;
+    ClampLayoutToScreen(P);
+    ApplyEditorLayout(P);
+    RefreshVisual(true);
+}
+
 // Default clock shortcut: current wallpaper goes back to the default clock.
 static void ApplyDefaultClock() {
     Layout D;
@@ -2841,6 +2971,10 @@ static LRESULT CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ApplyEditorLayout(d);
             }
             else if (wp == 'S' || wp == VK_TAB) SetStyle((g_layout.style + 1) % kStyleCount);
+            else if ((wp == 'C' || wp == 'V') && (GetKeyState(VK_CONTROL) & 0x8000)) {
+                if (wp == 'C') CopyLayout();
+                else PasteLayout();
+            }
             else if (wp == 'C') { if (GetKeyState(VK_SHIFT) & 0x8000) PickColor(0); else StartHexEntry(0); }
             else if (wp == 'V') { if (GetKeyState(VK_SHIFT) & 0x8000) PickColor(1); else StartHexEntry(1); }
             else if (wp == 'X') ResetColors();
@@ -2875,6 +3009,7 @@ static void EnterEditor() {
     g_drag.mode = H_NONE;
 
     if (g_clock) ShowWindow(g_clock, SW_HIDE);  // the editor draws the live preview itself
+    g_clockNeedsShow = true;                    // so closing the editor shows the clock again
 
     EdGeom ge = ComputeEdGeom(g_layout);
     SetWindowPos(g_editor, HWND_TOPMOST, ge.x, ge.y, ge.w, ge.h, SWP_NOACTIVATE);
@@ -2971,6 +3106,15 @@ static LRESULT CALLBACK CtrlProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ApplyClockLayout();
             }
             break;
+        case WM_APP_WALLPAPER_NOW:  // another mod just changed the wallpaper: switch now, no waiting
+            if (g_attachedOnce && !g_editing) {
+                if (g_wallPending) {
+                    KillTimer(hwnd, TIMER_WALL);
+                    g_wallPending = false;
+                }
+                ApplyWallpaper(false);  // does nothing if the wallpaper is still the same one
+            }
+            return 0;
         case WM_APP_RELOAD:
             LoadSettings();
             g_rfUsed = g_rfNext = 0;  // forget cached font lookups
@@ -3037,6 +3181,7 @@ static DWORD WINAPI WorkerThread(LPVOID) {
     SafeRelease(g_d2d);
     SafeRelease(g_customFonts);
     SafeRelease(g_dw);
+    SafeRelease(g_dwp);
     CoUninitialize();
     return 0;
 }
